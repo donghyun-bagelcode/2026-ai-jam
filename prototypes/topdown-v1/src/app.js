@@ -1,4 +1,4 @@
-import { ASSET_PATHS, COLORS } from './config.js';
+import { ASSET_PATHS } from './config.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
 import { getPixi, waitForPixi } from './pixi.js';
@@ -68,7 +68,7 @@ const createPixiApp = async (root) => {
   }
 
   const options = {
-    backgroundColor: COLORS.bg,
+    backgroundColor: 0x1a0a2e,
     resizeTo: root,
     antialias: true,
   };
@@ -76,7 +76,7 @@ const createPixiApp = async (root) => {
   const app = new PIXI.Application(options);
   if (typeof app.init === 'function') {
     await app.init({
-      background: COLORS.bg,
+      background: 0x1a0a2e,
       resizeTo: root,
       antialias: true,
     });

@@ -8,6 +8,28 @@ const STAGE_META = Array.from({ length: STAGE_COUNT }, (_, i) => ({
   playable: i === 0,
 }));
 
+// 0_guide.png(1080x1920) 기준 정규화 좌표
+const STAGE_POS_NORM = {
+  1: { x: 0.38, y: 0.90 },
+  2: { x: 0.66, y: 0.84 },
+  3: { x: 0.49, y: 0.78 },
+  4: { x: 0.28, y: 0.72 },
+  5: { x: 0.47, y: 0.66 },
+  6: { x: 0.66, y: 0.62 },
+  7: { x: 0.52, y: 0.55 },
+  8: { x: 0.36, y: 0.49 },
+  9: { x: 0.52, y: 0.43 },
+  10: { x: 0.57, y: 0.34 },
+};
+
+const UI_POS_NORM = {
+  worldTitle: { x: 0.5, y: 0.09 },
+  starBar: { x: 0.5, y: 0.16 },
+  back: { x: 0.06, y: 0.06 },
+  home: { x: 0.14, y: 0.06 },
+  page: { x: 0.92, y: 0.93 },
+};
+
 export const createLobbyScene = ({ app, textures, onSelectStage }) => {
   const PIXI = getPixi();
   if (!PIXI) {
@@ -67,40 +89,38 @@ export const createLobbyScene = ({ app, textures, onSelectStage }) => {
   const onResize = () => {
     const w = app.renderer.width;
     const h = app.renderer.height;
+    const bgRect = layoutContainTop(bg, w, h);
 
-    layoutCover(bg, w, h);
+    placeNormalized(title, bgRect, UI_POS_NORM.worldTitle);
+    title.style.fontSize = Math.max(28, Math.round(bgRect.width * 0.08));
 
-    title.position.set(w * 0.5, h * 0.09);
-    title.style.fontSize = Math.max(28, Math.round(w * 0.08));
+    fitByWidth(starBar, bgRect.width * 0.34);
+    placeNormalized(starBar, bgRect, UI_POS_NORM.starBar);
 
-    fitByWidth(starBar, w * 0.34);
-    starBar.position.set(w * 0.5, h * 0.15);
+    fitByWidth(topBack, bgRect.width * 0.10);
+    placeNormalized(topBack, bgRect, UI_POS_NORM.back);
 
-    fitByWidth(topBack, w * 0.095);
-    topBack.position.set(w * 0.09, h * 0.075);
+    fitByWidth(topHome, bgRect.width * 0.10);
+    placeNormalized(topHome, bgRect, UI_POS_NORM.home);
 
-    fitByWidth(topHome, w * 0.095);
-    topHome.position.set(w * 0.2, h * 0.075);
+    fitByWidth(pageButton, bgRect.width * 0.12);
+    placeNormalized(pageButton, bgRect, UI_POS_NORM.page);
 
-    fitByWidth(pageButton, w * 0.11);
-    pageButton.position.set(w * 0.91, h * 0.93);
+    const stageSize = bgRect.width * 0.17;
 
-    const points = getSPathPoints(w, h, STAGE_COUNT);
-    const stageSize = w * 0.18;
-
-    stageNodes.forEach((node, idx) => {
-      const p = points[idx];
+    stageNodes.forEach((node) => {
+      const p = STAGE_POS_NORM[node.id];
       fitByWidth(node.button, stageSize);
-      node.button.position.set(p.x, p.y);
+      placeNormalized(node.button, bgRect, p);
 
       if (node.numberSprite) {
         fitByWidth(node.numberSprite, stageSize * 0.34);
-        node.numberSprite.position.set(p.x, p.y + stageSize * 0.02);
+        placeNormalized(node.numberSprite, bgRect, { x: p.x, y: p.y + 0.006 });
       }
 
       if (node.numberText) {
         node.numberText.style.fontSize = Math.max(16, Math.round(stageSize * 0.2));
-        node.numberText.position.set(p.x, p.y + stageSize * 0.02);
+        placeNormalized(node.numberText, bgRect, { x: p.x, y: p.y + 0.006 });
       }
     });
   };
@@ -117,7 +137,6 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
   const buttonTexture = pickStageTexture(textures, meta.status);
   const button = new PIXI.Sprite(buttonTexture);
   button.anchor.set(0.5, 0.5);
-
   button.eventMode = 'static';
   button.cursor = meta.playable ? 'pointer' : 'default';
   button.alpha = meta.playable ? 1 : 0.94;
@@ -144,7 +163,7 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
     numberText.anchor.set(0.5, 0.5);
   }
 
-  return { button, numberSprite, numberText };
+  return { id: meta.id, button, numberSprite, numberText };
 };
 
 const pickStageTexture = (textures, status) => {
@@ -160,32 +179,25 @@ const pickStageTexture = (textures, status) => {
   return textures.stageRed;
 };
 
-const layoutCover = (sprite, viewW, viewH) => {
-  const scale = Math.max(viewW / sprite.texture.width, viewH / sprite.texture.height);
+const layoutContainTop = (sprite, viewW, viewH) => {
+  const scale = Math.min(viewW / sprite.texture.width, viewH / sprite.texture.height);
   sprite.scale.set(scale);
   sprite.x = (viewW - sprite.texture.width * scale) * 0.5;
-  sprite.y = (viewH - sprite.texture.height * scale) * 0.5;
+  sprite.y = 0;
+  return {
+    x: sprite.x,
+    y: sprite.y,
+    width: sprite.texture.width * scale,
+    height: sprite.texture.height * scale,
+  };
+};
+
+const placeNormalized = (displayObject, bgRect, norm) => {
+  displayObject.position.set(bgRect.x + bgRect.width * norm.x, bgRect.y + bgRect.height * norm.y);
 };
 
 const fitByWidth = (sprite, targetWidth) => {
   const ratio = sprite.texture.height / sprite.texture.width;
   sprite.width = targetWidth;
   sprite.height = targetWidth * ratio;
-};
-
-const getSPathPoints = (w, h, count) => {
-  const points = [];
-  const top = h * 0.24;
-  const bottom = h * 0.83;
-  const mid = w * 0.5;
-  const amp = w * 0.22;
-
-  for (let i = 0; i < count; i += 1) {
-    const t = count === 1 ? 0 : i / (count - 1);
-    const y = bottom - (bottom - top) * t;
-    const x = mid + Math.sin((t * Math.PI * 2.2) + 0.3) * amp;
-    points.push({ x, y });
-  }
-
-  return points;
 };

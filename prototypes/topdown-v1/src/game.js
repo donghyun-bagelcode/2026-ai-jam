@@ -147,8 +147,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
   app.ticker.add(tickerUpdate);
 
   const onResize = () => {
-    layoutBackground(background);
-    board.layout(app.renderer.width, app.renderer.height);
+    const bgRect = layoutBackground(background);
+    board.layoutInRect(bgRect);
     layoutHudByBoard(board);
   };
 
@@ -384,10 +384,16 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
   function layoutBackground(sprite) {
     const width = app.renderer.width;
     const height = app.renderer.height;
-    const scale = Math.max(width / sprite.texture.width, height / sprite.texture.height);
+    const scale = Math.min(width / sprite.texture.width, height / sprite.texture.height);
     sprite.scale.set(scale);
     sprite.x = (width - sprite.texture.width * scale) * 0.5;
-    sprite.y = (height - sprite.texture.height * scale) * 0.5;
+    sprite.y = 0;
+    return {
+      x: sprite.x,
+      y: sprite.y,
+      width: sprite.texture.width * scale,
+      height: sprite.texture.height * scale,
+    };
   }
 
   return {
