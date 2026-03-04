@@ -296,36 +296,19 @@ const layoutHudByBoard = (root, board) => {
   const boardCenterX = board.container.x + boardWidth * 0.5;
   const margin = 12;
   const gap = 12;
-  const topPairGap = 10;
-
-  const debugButton = debugUi?.button ?? null;
-
   const keyHeight = keyHudEl.offsetHeight || 32;
-  const keyWidth = keyHudEl.offsetWidth || 90;
-  const debugHeight = debugButton?.offsetHeight || 30;
-  const debugWidth = debugButton?.offsetWidth || 70;
   const resetHeight = resetButtonEl.offsetHeight || 40;
 
-  const topHeight = Math.max(keyHeight, debugHeight);
-  const topY = Math.max(margin, boardTop - topHeight - gap);
-  const pairWidth = keyWidth + topPairGap + debugWidth;
-  const pairStartX = boardCenterX - pairWidth * 0.5;
-
-  keyHudEl.style.transform = 'none';
-  keyHudEl.style.left = `${Math.round(pairStartX)}px`;
-  keyHudEl.style.top = `${Math.round(topY)}px`;
-
-  if (debugButton) {
-    debugButton.style.right = 'auto';
-    debugButton.style.transform = 'none';
-    debugButton.style.left = `${Math.round(pairStartX + keyWidth + topPairGap)}px`;
-    debugButton.style.top = `${Math.round(topY)}px`;
-  }
+  const keyTop = Math.max(margin, boardTop - keyHeight - gap);
+  keyHudEl.style.left = `${Math.round(boardCenterX)}px`;
+  keyHudEl.style.top = `${Math.round(keyTop)}px`;
+  keyHudEl.style.transform = 'translateX(-50%)';
 
   const resetTop = Math.min(viewHeight - resetHeight - margin, boardBottom + gap);
 
   resetButtonEl.style.left = `${Math.round(boardCenterX)}px`;
   resetButtonEl.style.top = `${Math.round(resetTop)}px`;
+  resetButtonEl.style.transform = 'translateX(-50%)';
 };
 
 const updateHud = (state) => {
@@ -348,8 +331,8 @@ const hideClear = () => {
 };
 
 const getPlayerRendererPosition = (player, board) => ({
-  x: board.container.x + player.sprite.x,
-  y: board.container.y + player.sprite.y,
+  x: board.container.x + player.sprite.x * board.container.scale.x,
+  y: board.container.y + player.sprite.y * board.container.scale.y,
 });
 
 const setupGlobalErrorCapture = () => {

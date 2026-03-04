@@ -1,8 +1,8 @@
 export const GRID_COLS = 7;
 export const GRID_ROWS = 10;
 export const TILE_SIZE = 64;
-export const TILE_GAP = 8;
-export const BOARD_PADDING = 20;
+export const TILE_GAP = 0;
+export const BOARD_PADDING = 0;
 export const SLIDE_DURATION_MS = 260;
 
 export const COLORS = {

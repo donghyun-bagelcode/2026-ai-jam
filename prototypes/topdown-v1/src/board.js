@@ -31,8 +31,13 @@ export class Board {
   }
 
   layout(viewWidth, viewHeight) {
-    this.container.x = Math.floor((viewWidth - this.boardPixelWidth) / 2);
-    this.container.y = Math.floor((viewHeight - this.boardPixelHeight) / 2);
+    const scaleX = (viewWidth * 0.9) / this.boardPixelWidth;
+    const scaleY = (viewHeight * 0.7) / this.boardPixelHeight;
+    const boardScale = Math.min(scaleX, scaleY);
+
+    this.container.scale.set(boardScale);
+    this.container.x = Math.floor((viewWidth - this.boardPixelWidth * boardScale) * 0.5);
+    this.container.y = Math.floor(viewHeight * 0.15);
   }
 
   draw() {
