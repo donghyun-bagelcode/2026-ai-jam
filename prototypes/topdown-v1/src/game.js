@@ -9,6 +9,7 @@ let debugUi = null;
 let keyHudEl = null;
 let clearEl = null;
 let resetButtonEl = null;
+let pendingSlideOutcome = null;
 
 const TOP_UI = {
   height: 36,
@@ -77,20 +78,7 @@ const bootstrap = async () => {
       const moved = slideResult.moved;
 
       if (moved) {
-        const gained = board.collectKeysOnPath(slideResult.path);
-        if (gained > 0) {
-          state.keyCollected += gained;
-          if (state.keyCollected >= state.keyGoal && !state.portalActive) {
-            state.portalActive = true;
-            board.setPortalActive(true);
-          }
-        }
-
-        if (state.portalActive && board.isPortalOnPath(slideResult.path)) {
-          state.clear = true;
-          showClear();
-        }
-        updateHud(state);
+        pendingSlideOutcome = { path: slideResult.path, applied: false };
       }
 
       const after = player.getGridPosition();
@@ -120,6 +108,7 @@ const bootstrap = async () => {
     state.keyCollected = 0;
     state.clear = false;
     state.portalActive = false;
+    pendingSlideOutcome = null;
     player.resetTo(PLAYER_START);
     board.resetObjects();
     hideClear();
@@ -132,9 +121,39 @@ const bootstrap = async () => {
   app.ticker.add(() => {
     const deltaMs = app.ticker.deltaMS;
     player.update(deltaMs);
+
+    if (pendingSlideOutcome && !pendingSlideOutcome.applied && player.getAnimationProgress() >= 0.9) {
+      applySlideOutcome(board, state, pendingSlideOutcome.path);
+      pendingSlideOutcome.applied = true;
+    }
+
+    if (pendingSlideOutcome && !player.isAnimating()) {
+      if (!pendingSlideOutcome.applied) {
+        applySlideOutcome(board, state, pendingSlideOutcome.path);
+      }
+      pendingSlideOutcome = null;
+    }
+
     const pos = player.getGridPosition();
     debugUi.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
   });
+};
+
+const applySlideOutcome = (board, state, path) => {
+  const gained = board.collectKeysOnPath(path);
+  if (gained > 0) {
+    state.keyCollected += gained;
+    if (state.keyCollected >= state.keyGoal && !state.portalActive) {
+      state.portalActive = true;
+      board.setPortalActive(true);
+    }
+  }
+
+  if (state.portalActive && board.isPortalOnPath(path)) {
+    state.clear = true;
+    showClear();
+  }
+  updateHud(state);
 };
 
 const createPixiApp = async (root) => {

@@ -28,6 +28,7 @@ export class Player {
     this.fromPx = { x: 0, y: 0 };
     this.toPx = { x: 0, y: 0 };
     this.elapsedMs = 0;
+    this.animationProgress = 0;
     this.facing = 'down';
     this.frames = this.buildAnimationFrames(this.textures.characterSheet);
 
@@ -51,6 +52,10 @@ export class Player {
     return this.animating;
   }
 
+  getAnimationProgress() {
+    return this.animationProgress;
+  }
+
   getGridPosition() {
     return { x: this.gridX, y: this.gridY };
   }
@@ -60,6 +65,7 @@ export class Player {
     this.gridY = startCell.y;
     this.animating = false;
     this.elapsedMs = 0;
+    this.animationProgress = 0;
     this.setIdleFrame('down');
     this.syncSpriteToGrid();
   }
@@ -87,6 +93,7 @@ export class Player {
     this.gridY = dest.y;
 
     this.elapsedMs = 0;
+    this.animationProgress = 0;
     this.animating = true;
     return { moved: true, path, dest };
   }
@@ -98,6 +105,7 @@ export class Player {
 
     this.elapsedMs += deltaMs;
     const normalized = Math.min(this.elapsedMs / SLIDE_DURATION_MS, 1);
+    this.animationProgress = normalized;
     const eased = easeInOutCubic(normalized);
 
     this.sprite.x = this.fromPx.x + (this.toPx.x - this.fromPx.x) * eased;
@@ -106,6 +114,7 @@ export class Player {
 
     if (normalized >= 1) {
       this.animating = false;
+      this.animationProgress = 1;
       this.setIdleFrame(this.facing);
       this.syncSpriteToGrid();
       return;
