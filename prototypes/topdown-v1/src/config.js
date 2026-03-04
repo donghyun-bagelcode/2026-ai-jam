@@ -25,6 +25,12 @@ export const ASSET_PATHS = {
   portalOn: './image/portal_on.png',
 };
 
+export const OBJECT_SCALE = {
+  character: 1.28,
+  key: 1.18,
+  portal: 1.36,
+};
+
 export const STAGE_LAYOUT_W1_S1 = [
   '#######',
   '#..P..#',

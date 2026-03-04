@@ -2,6 +2,9 @@ import { SLIDE_DURATION_MS, TILE_SIZE } from './config.js';
 import { getPixi } from './pixi.js';
 
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
+const CHARACTER_SCALE = 1.28;
+const CHARACTER_BOTTOM_OFFSET = -0.04;
+const CHARACTER_X_OFFSET = -0.05;
 
 export class Player {
   constructor(board, startCell, textures) {
@@ -21,18 +24,18 @@ export class Player {
     this.elapsedMs = 0;
 
     this.sprite = new this.PIXI.Sprite(this.textures.character);
-    this.sprite.anchor.set(0.5);
-    this.sprite.width = TILE_SIZE;
-    this.sprite.height = TILE_SIZE;
-    this.board.container.addChild(this.sprite);
+    this.sprite.anchor.set(0.5, 1);
+    this.applyObjectScale(this.sprite, CHARACTER_SCALE);
+    this.board.objectLayer.addChild(this.sprite);
 
     this.syncSpriteToGrid();
   }
 
   syncSpriteToGrid() {
     const cell = this.board.toPixel(this.gridX, this.gridY);
-    this.sprite.x = cell.x + TILE_SIZE * 0.5;
-    this.sprite.y = cell.y + TILE_SIZE * 0.5;
+    this.sprite.x = cell.x + TILE_SIZE * (0.5 + CHARACTER_X_OFFSET);
+    this.sprite.y = cell.y + TILE_SIZE * (1 + CHARACTER_BOTTOM_OFFSET);
+    this.sprite.zIndex = this.sprite.y;
   }
 
   isAnimating() {
@@ -64,8 +67,8 @@ export class Player {
     this.fromPx = { x: this.sprite.x, y: this.sprite.y };
     const targetCellPx = this.board.toPixel(dest.x, dest.y);
     this.toPx = {
-      x: targetCellPx.x + TILE_SIZE * 0.5,
-      y: targetCellPx.y + TILE_SIZE * 0.5,
+      x: targetCellPx.x + TILE_SIZE * (0.5 + CHARACTER_X_OFFSET),
+      y: targetCellPx.y + TILE_SIZE * (1 + CHARACTER_BOTTOM_OFFSET),
     };
 
     this.gridX = dest.x;
@@ -87,6 +90,7 @@ export class Player {
 
     this.sprite.x = this.fromPx.x + (this.toPx.x - this.fromPx.x) * eased;
     this.sprite.y = this.fromPx.y + (this.toPx.y - this.fromPx.y) * eased;
+    this.sprite.zIndex = this.sprite.y;
 
     if (normalized >= 1) {
       this.animating = false;
@@ -109,5 +113,14 @@ export class Player {
     }
 
     return { dest: { x: nextX, y: nextY }, path };
+  }
+
+  applyObjectScale(sprite, scaleFactor) {
+    const texW = sprite.texture.width || 1;
+    const texH = sprite.texture.height || 1;
+    const base = TILE_SIZE * scaleFactor;
+    const fitScale = base / Math.max(texW, texH);
+    sprite.width = texW * fitScale;
+    sprite.height = texH * fitScale;
   }
 }
