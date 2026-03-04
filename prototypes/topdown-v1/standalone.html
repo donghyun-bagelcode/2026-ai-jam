@@ -455,12 +455,12 @@ class Player {
     this.syncSpriteToGrid();
   }
 
-  trySlide(direction) {
+  trySlide(direction, options = {}) {
     if (this.animating) {
       return { moved: false, reason: 'animating', path: [] };
     }
 
-    const { dest, path } = this.findStopCell(direction.dx, direction.dy);
+    const { dest, path } = this.findStopCell(direction.dx, direction.dy, options.stopAtCell);
     if (dest.x === this.gridX && dest.y === this.gridY) {
       return { moved: false, reason: 'blocked', path: [] };
     }
@@ -498,7 +498,7 @@ class Player {
     }
   }
 
-  findStopCell(dx, dy) {
+  findStopCell(dx, dy, stopAtCell) {
     let nextX = this.gridX;
     let nextY = this.gridY;
     const path = [];
@@ -507,6 +507,9 @@ class Player {
       nextX += dx;
       nextY += dy;
       path.push({ x: nextX, y: nextY });
+      if (stopAtCell && stopAtCell(nextX, nextY)) {
+        break;
+      }
     }
 
     return { dest: { x: nextX, y: nextY }, path };
@@ -631,7 +634,12 @@ const bootstrap = async () => {
 
       const before = player.getGridPosition();
       const wasAnimating = player.isAnimating();
-      const slideResult = wasAnimating ? { moved: false, path: [] } : player.trySlide(direction);
+      const slideResult = wasAnimating
+        ? { moved: false, path: [] }
+        : player.trySlide(direction, {
+            stopAtCell: (x, y) =>
+              state.portalActive && x === PORTAL_CELL.x && y === PORTAL_CELL.y,
+          });
       const moved = slideResult.moved;
 
       if (moved) {

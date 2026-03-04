@@ -54,7 +54,12 @@ const bootstrap = async () => {
 
       const before = player.getGridPosition();
       const wasAnimating = player.isAnimating();
-      const slideResult = wasAnimating ? { moved: false, path: [] } : player.trySlide(direction);
+      const slideResult = wasAnimating
+        ? { moved: false, path: [] }
+        : player.trySlide(direction, {
+            stopAtCell: (x, y) =>
+              state.portalActive && x === PORTAL_CELL.x && y === PORTAL_CELL.y,
+          });
       const moved = slideResult.moved;
 
       if (moved) {

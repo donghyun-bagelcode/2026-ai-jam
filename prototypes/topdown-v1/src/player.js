@@ -50,12 +50,12 @@ export class Player {
     this.syncSpriteToGrid();
   }
 
-  trySlide(direction) {
+  trySlide(direction, options = {}) {
     if (this.animating) {
       return { moved: false, reason: 'animating', path: [] };
     }
 
-    const { dest, path } = this.findStopCell(direction.dx, direction.dy);
+    const { dest, path } = this.findStopCell(direction.dx, direction.dy, options.stopAtCell);
     if (dest.x === this.gridX && dest.y === this.gridY) {
       return { moved: false, reason: 'blocked', path: [] };
     }
@@ -93,7 +93,7 @@ export class Player {
     }
   }
 
-  findStopCell(dx, dy) {
+  findStopCell(dx, dy, stopAtCell) {
     let nextX = this.gridX;
     let nextY = this.gridY;
     const path = [];
@@ -102,6 +102,9 @@ export class Player {
       nextX += dx;
       nextY += dy;
       path.push({ x: nextX, y: nextY });
+      if (stopAtCell && stopAtCell(nextX, nextY)) {
+        break;
+      }
     }
 
     return { dest: { x: nextX, y: nextY }, path };
