@@ -5,6 +5,9 @@ import { DirectionClickInput } from './input.js';
 import { Player } from './player.js';
 import { getPixi } from './pixi.js';
 
+const DESIGN_W = 1080;
+const DESIGN_H = 1920;
+
 let debugUi = null;
 
 const TOP_UI = {
@@ -25,10 +28,17 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
   const container = new PIXI.Container();
   container.visible = false;
 
-  const background = new PIXI.Sprite(textures.bg);
-  container.addChild(background);
+  const frame = new PIXI.Container();
+  container.addChild(frame);
 
-  const board = new Board(container, MAP_WALLS, KEY_CELLS, PORTAL_CELL, textures);
+  const background = new PIXI.Sprite(textures.bg);
+  background.x = 0;
+  background.y = 0;
+  background.width = DESIGN_W;
+  background.height = DESIGN_H;
+  frame.addChild(background);
+
+  const board = new Board(frame, MAP_WALLS, KEY_CELLS, PORTAL_CELL, textures);
   const player = new Player(board, PLAYER_START, textures);
 
   const state = {
@@ -58,7 +68,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
 
   const input = new DirectionClickInput(
     app.canvas ?? app.view,
-    () => getPlayerRendererPosition(player, board),
+    () => getPlayerRendererPosition(player, board, frame),
     (direction) => {
       if (!state.active || state.clear) {
         return;
@@ -147,14 +157,15 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
   app.ticker.add(tickerUpdate);
 
   const onResize = () => {
-    const bgRect = layoutBackground(background);
-    board.layoutInRect(bgRect);
-    layoutHudByBoard(board);
+    layoutVirtualFrame(frame, app.renderer.width, app.renderer.height);
+    board.layout(DESIGN_W, DESIGN_H);
+    layoutHudByBoard(board, frame);
   };
 
   const onEnter = (ctx = {}) => {
     const payload = ctx.payload ?? ctx;
     state.active = true;
+
     if (payload.stageId) {
       state.stageId = payload.stageId;
       if (state.stageId !== 1) {
@@ -162,6 +173,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
       }
       resetGameplay();
     }
+
     onResize();
     setUiVisible(true);
     const pos = player.getGridPosition();
@@ -171,6 +183,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
   const onExit = () => {
     state.active = false;
     setUiVisible(false);
+  };
+
+  const onSceneResize = () => {
+    onResize();
   };
 
   const loadStage = (stageId) => {
@@ -198,6 +214,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
       state.clear = true;
       showClear();
     }
+
     updateHud();
   };
 
@@ -211,6 +228,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
     board.resetObjects();
     hideClear();
     updateHud();
+
     const pos = player.getGridPosition();
     debugUi?.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
   };
@@ -245,9 +263,6 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
     clearEl = document.createElement('div');
     clearEl.textContent = 'CLEAR!';
     clearEl.style.position = 'fixed';
-    clearEl.style.top = '50%';
-    clearEl.style.left = '50%';
-    clearEl.style.transform = 'translate(-50%, -50%)';
     clearEl.style.zIndex = '9001';
     clearEl.style.padding = '14px 24px';
     clearEl.style.borderRadius = '12px';
@@ -293,14 +308,18 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
     button.style.cursor = 'pointer';
   }
 
-  function layoutHudByBoard(currentBoard) {
+  function layoutHudByBoard(currentBoard, currentFrame) {
     if (!keyHudEl || !resetButtonEl || !homeButtonEl || !backButtonEl) {
       return;
     }
 
-    const boardTop = currentBoard.container.y;
-    const boardWidth = currentBoard.boardPixelWidth * currentBoard.container.scale.x;
-    const boardCenterX = currentBoard.container.x + boardWidth * 0.5;
+    const frameScale = currentFrame.scale.x;
+    const frameX = currentFrame.x;
+    const frameY = currentFrame.y;
+
+    const boardTop = frameY + currentBoard.container.y * frameScale;
+    const boardWidth = currentBoard.boardPixelWidth * currentBoard.container.scale.x * frameScale;
+    const boardCenterX = frameX + (currentBoard.container.x * frameScale) + boardWidth * 0.5;
 
     const margin = 12;
     const gap = 12;
@@ -342,6 +361,14 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
         debugUi.panel.style.top = `${Math.round(rowTop + rowH + 8)}px`;
       }
     }
+
+    if (clearEl) {
+      const clearX = frameX + DESIGN_W * frameScale * 0.5;
+      const clearY = frameY + DESIGN_H * frameScale * 0.5;
+      clearEl.style.left = `${Math.round(clearX)}px`;
+      clearEl.style.top = `${Math.round(clearY)}px`;
+      clearEl.style.transform = 'translate(-50%, -50%)';
+    }
   }
 
   function placeElement(el, x, y) {
@@ -381,35 +408,31 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
     if (debugUi?.panel && !visible) debugUi.panel.style.display = 'none';
   }
 
-  function layoutBackground(sprite) {
-    const width = app.renderer.width;
-    const height = app.renderer.height;
-    const scale = Math.min(width / sprite.texture.width, height / sprite.texture.height);
-    sprite.scale.set(scale);
-    sprite.x = (width - sprite.texture.width * scale) * 0.5;
-    sprite.y = 0;
-    return {
-      x: sprite.x,
-      y: sprite.y,
-      width: sprite.texture.width * scale,
-      height: sprite.texture.height * scale,
-    };
-  }
-
   return {
     container,
     onEnter,
     onExit,
-    onResize,
+    onResize: onSceneResize,
     loadStage,
     destroy,
   };
 };
 
-const getPlayerRendererPosition = (player, board) => ({
-  x: board.container.x + player.sprite.x * board.container.scale.x,
-  y: board.container.y + player.sprite.y * board.container.scale.y,
-});
+const layoutVirtualFrame = (frame, screenW, screenH) => {
+  const scale = Math.min(screenW / DESIGN_W, screenH / DESIGN_H);
+  frame.scale.set(scale);
+  frame.x = (screenW - DESIGN_W * scale) * 0.5;
+  frame.y = 0;
+};
+
+const getPlayerRendererPosition = (player, board, frame) => {
+  const localX = board.container.x + player.sprite.x * board.container.scale.x;
+  const localY = board.container.y + player.sprite.y * board.container.scale.y;
+  return {
+    x: frame.x + localX * frame.scale.x,
+    y: frame.y + localY * frame.scale.y,
+  };
+};
 
 const setupGlobalErrorCapture = () => {
   window.addEventListener('error', (event) => {
