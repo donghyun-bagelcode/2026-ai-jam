@@ -43,6 +43,7 @@ const bootstrap = async () => {
   const layout = () => {
     layoutBackground(background, app);
     board.layout(app.renderer.width, app.renderer.height);
+    layoutHudByBoard(root, board);
   };
   layout();
 
@@ -239,7 +240,8 @@ const createHud = (root) => {
   keyHudEl = document.createElement('div');
   keyHudEl.style.position = 'fixed';
   keyHudEl.style.top = '12px';
-  keyHudEl.style.left = '12px';
+  keyHudEl.style.left = '50%';
+  keyHudEl.style.transform = 'translateX(-50%)';
   keyHudEl.style.zIndex = '9000';
   keyHudEl.style.padding = '8px 10px';
   keyHudEl.style.borderRadius = '10px';
@@ -250,8 +252,9 @@ const createHud = (root) => {
   resetButtonEl = document.createElement('button');
   resetButtonEl.textContent = 'Reset';
   resetButtonEl.style.position = 'fixed';
-  resetButtonEl.style.bottom = '16px';
-  resetButtonEl.style.right = '16px';
+  resetButtonEl.style.top = '16px';
+  resetButtonEl.style.left = '50%';
+  resetButtonEl.style.transform = 'translateX(-50%)';
   resetButtonEl.style.zIndex = '9000';
   resetButtonEl.style.border = '0';
   resetButtonEl.style.borderRadius = '10px';
@@ -278,6 +281,51 @@ const createHud = (root) => {
   root.appendChild(keyHudEl);
   root.appendChild(resetButtonEl);
   root.appendChild(clearEl);
+};
+
+const layoutHudByBoard = (root, board) => {
+  if (!keyHudEl || !resetButtonEl) {
+    return;
+  }
+
+  const viewHeight = root.clientHeight;
+  const boardTop = board.container.y;
+  const boardWidth = board.boardPixelWidth * board.container.scale.x;
+  const boardHeight = board.boardPixelHeight * board.container.scale.y;
+  const boardBottom = boardTop + boardHeight;
+  const boardCenterX = board.container.x + boardWidth * 0.5;
+  const margin = 12;
+  const gap = 12;
+  const topPairGap = 10;
+
+  const debugButton = debugUi?.button ?? null;
+
+  const keyHeight = keyHudEl.offsetHeight || 32;
+  const keyWidth = keyHudEl.offsetWidth || 90;
+  const debugHeight = debugButton?.offsetHeight || 30;
+  const debugWidth = debugButton?.offsetWidth || 70;
+  const resetHeight = resetButtonEl.offsetHeight || 40;
+
+  const topHeight = Math.max(keyHeight, debugHeight);
+  const topY = Math.max(margin, boardTop - topHeight - gap);
+  const pairWidth = keyWidth + topPairGap + debugWidth;
+  const pairStartX = boardCenterX - pairWidth * 0.5;
+
+  keyHudEl.style.transform = 'none';
+  keyHudEl.style.left = `${Math.round(pairStartX)}px`;
+  keyHudEl.style.top = `${Math.round(topY)}px`;
+
+  if (debugButton) {
+    debugButton.style.right = 'auto';
+    debugButton.style.transform = 'none';
+    debugButton.style.left = `${Math.round(pairStartX + keyWidth + topPairGap)}px`;
+    debugButton.style.top = `${Math.round(topY)}px`;
+  }
+
+  const resetTop = Math.min(viewHeight - resetHeight - margin, boardBottom + gap);
+
+  resetButtonEl.style.left = `${Math.round(boardCenterX)}px`;
+  resetButtonEl.style.top = `${Math.round(resetTop)}px`;
 };
 
 const updateHud = (state) => {

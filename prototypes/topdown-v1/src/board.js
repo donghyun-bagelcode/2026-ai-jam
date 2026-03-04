@@ -1,4 +1,4 @@
-import { BOARD_PADDING, GRID_SIZE, TILE_GAP, TILE_SIZE } from './config.js';
+import { BOARD_PADDING, GRID_COLS, GRID_ROWS, TILE_GAP, TILE_SIZE } from './config.js';
 import { getPixi } from './pixi.js';
 
 const wallKey = (x, y) => `${x},${y}`;
@@ -22,26 +22,28 @@ export class Board {
     this.objectLayer = new this.PIXI.Container();
     this.portalSprite = null;
 
-    this.gridPixelSize = GRID_SIZE * TILE_SIZE + (GRID_SIZE - 1) * TILE_GAP;
-    this.boardPixelSize = this.gridPixelSize + BOARD_PADDING * 2;
+    this.gridPixelWidth = GRID_COLS * TILE_SIZE + (GRID_COLS - 1) * TILE_GAP;
+    this.gridPixelHeight = GRID_ROWS * TILE_SIZE + (GRID_ROWS - 1) * TILE_GAP;
+    this.boardPixelWidth = this.gridPixelWidth + BOARD_PADDING * 2;
+    this.boardPixelHeight = this.gridPixelHeight + BOARD_PADDING * 2;
 
     this.draw();
   }
 
   layout(viewWidth, viewHeight) {
-    this.container.x = Math.floor((viewWidth - this.boardPixelSize) / 2);
-    this.container.y = Math.floor((viewHeight - this.boardPixelSize) / 2);
+    this.container.x = Math.floor((viewWidth - this.boardPixelWidth) / 2);
+    this.container.y = Math.floor((viewHeight - this.boardPixelHeight) / 2);
   }
 
   draw() {
-    const bg = new this.PIXI.Graphics();
-    bg.beginFill(0xffffff);
-    bg.drawRoundedRect(0, 0, this.boardPixelSize, this.boardPixelSize, 24);
-    bg.endFill();
-    this.container.addChild(bg);
+    for (let y = 0; y < GRID_ROWS; y += 1) {
+      for (let x = 0; x < GRID_COLS; x += 1) {
+        const isOuter =
+          y === 0 || y === GRID_ROWS - 1 || x === 0 || x === GRID_COLS - 1;
+        if (isOuter) {
+          continue;
+        }
 
-    for (let y = 0; y < GRID_SIZE; y += 1) {
-      for (let x = 0; x < GRID_SIZE; x += 1) {
         const tile = new this.PIXI.Sprite(this.textures.tile);
         tile.width = TILE_SIZE;
         tile.height = TILE_SIZE;
@@ -104,7 +106,7 @@ export class Board {
   }
 
   isInside(x, y) {
-    return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+    return x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS;
   }
 
   canStand(x, y) {
