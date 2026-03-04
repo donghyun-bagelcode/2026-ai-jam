@@ -2,12 +2,19 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 PORT="${1:-3000}"
 URL="http://localhost:${PORT}"
-LOG_FILE="$SCRIPT_DIR/.server-${PORT}.log"
-PID_FILE="$SCRIPT_DIR/.server-${PORT}.pid"
+LOG_FILE="$PROJECT_DIR/.server-${PORT}.log"
+PID_FILE="$PROJECT_DIR/.server-${PORT}.pid"
 
-cd "$SCRIPT_DIR"
+cd "$PROJECT_DIR"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3를 찾을 수 없습니다."
+  echo "설치 후 다시 실행해 주세요."
+  exit 1
+fi
 
 is_running() {
   local pid=""
@@ -33,3 +40,4 @@ open "$URL"
 echo "Server URL: $URL"
 echo "Log file: $LOG_FILE"
 echo "Stop: kill \$(cat $PID_FILE)"
+echo "최초 실행 문제 시: bash setup-mac.sh"
