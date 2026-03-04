@@ -191,7 +191,7 @@ const loadTextures = async () => {
     bg: PIXI.Assets.get('bg'),
     tile: PIXI.Assets.get('tile'),
     wall: PIXI.Assets.get('wall'),
-    character: PIXI.Assets.get('character'),
+    characterSheet: PIXI.Assets.get('characterSheet'),
     key: PIXI.Assets.get('key'),
     portalOff: PIXI.Assets.get('portalOff'),
     portalOn: PIXI.Assets.get('portalOn'),

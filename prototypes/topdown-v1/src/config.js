@@ -19,7 +19,7 @@ export const ASSET_PATHS = {
   bg: './image/BG_3.png',
   tile: './image/tile.png',
   wall: './image/block.png',
-  character: './image/character.png',
+  characterSheet: './image/character-knight.png',
   key: './image/key.png',
   portalOff: './image/portal_off.png',
   portalOn: './image/portal_on.png',

@@ -5,6 +5,12 @@ const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3)
 const CHARACTER_SCALE = 1.28;
 const CHARACTER_BOTTOM_OFFSET = -0.04;
 const CHARACTER_X_OFFSET = -0.05;
+const SHEET_COLS = 4;
+const SHEET_ROWS = 4;
+const WALK_FRAME_START_COL = 1;
+const WALK_FRAME_COUNT = 3;
+const WALK_CYCLE_COUNT = 2;
+const DIRECTION_ROWS = ['down', 'right', 'left', 'up'];
 
 export class Player {
   constructor(board, startCell, textures) {
@@ -22,12 +28,15 @@ export class Player {
     this.fromPx = { x: 0, y: 0 };
     this.toPx = { x: 0, y: 0 };
     this.elapsedMs = 0;
+    this.facing = 'down';
+    this.frames = this.buildAnimationFrames(this.textures.characterSheet);
 
-    this.sprite = new this.PIXI.Sprite(this.textures.character);
+    this.sprite = new this.PIXI.Sprite(this.frames.down[0]);
     this.sprite.anchor.set(0.5, 1);
     this.applyObjectScale(this.sprite, CHARACTER_SCALE);
     this.board.objectLayer.addChild(this.sprite);
 
+    this.setIdleFrame('down');
     this.syncSpriteToGrid();
   }
 
@@ -51,6 +60,7 @@ export class Player {
     this.gridY = startCell.y;
     this.animating = false;
     this.elapsedMs = 0;
+    this.setIdleFrame('down');
     this.syncSpriteToGrid();
   }
 
@@ -63,6 +73,8 @@ export class Player {
     if (dest.x === this.gridX && dest.y === this.gridY) {
       return { moved: false, reason: 'blocked', path: [] };
     }
+    this.facing = this.directionToFacing(direction.dx, direction.dy);
+    this.setWalkFrame(0);
 
     this.fromPx = { x: this.sprite.x, y: this.sprite.y };
     const targetCellPx = this.board.toPixel(dest.x, dest.y);
@@ -94,8 +106,13 @@ export class Player {
 
     if (normalized >= 1) {
       this.animating = false;
+      this.setIdleFrame(this.facing);
       this.syncSpriteToGrid();
+      return;
     }
+
+    const walkStep = Math.floor(normalized * WALK_FRAME_COUNT * WALK_CYCLE_COUNT) % WALK_FRAME_COUNT;
+    this.setWalkFrame(walkStep);
   }
 
   findStopCell(dx, dy, stopAtCell) {
@@ -122,5 +139,49 @@ export class Player {
     const fitScale = base / Math.max(texW, texH);
     sprite.width = texW * fitScale;
     sprite.height = texH * fitScale;
+  }
+
+  buildAnimationFrames(sheetTexture) {
+    if (!sheetTexture) {
+      throw new Error('characterSheet 텍스처를 찾지 못했습니다.');
+    }
+
+    const frameWidth = Math.floor(sheetTexture.width / SHEET_COLS);
+    const frameHeight = Math.floor(sheetTexture.height / SHEET_ROWS);
+    const frames = {};
+
+    for (let row = 0; row < SHEET_ROWS; row += 1) {
+      const direction = DIRECTION_ROWS[row];
+      frames[direction] = [];
+      for (let col = 0; col < SHEET_COLS; col += 1) {
+        const rect = new this.PIXI.Rectangle(col * frameWidth, row * frameHeight, frameWidth, frameHeight);
+        frames[direction].push(new this.PIXI.Texture(sheetTexture.baseTexture, rect));
+      }
+    }
+
+    return frames;
+  }
+
+  directionToFacing(dx, dy) {
+    if (dx > 0) {
+      return 'right';
+    }
+    if (dx < 0) {
+      return 'left';
+    }
+    if (dy < 0) {
+      return 'up';
+    }
+    return 'down';
+  }
+
+  setIdleFrame(direction) {
+    this.facing = direction;
+    this.sprite.texture = this.frames[direction][0];
+  }
+
+  setWalkFrame(stepIndex) {
+    const col = WALK_FRAME_START_COL + (stepIndex % WALK_FRAME_COUNT);
+    this.sprite.texture = this.frames[this.facing][col];
   }
 }
