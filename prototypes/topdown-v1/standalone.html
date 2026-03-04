@@ -29,546 +29,806 @@
     <script src="https://cdn.jsdelivr.net/npm/pixi.js-legacy@7.4.2/dist/pixi-legacy.min.js"></script>
     <script>
       (() => {
-        const GRID_SIZE = 7;
-        const TILE_SIZE = 64;
-        const TILE_GAP = 8;
-        const BOARD_PADDING = 20;
-        const SLIDE_DURATION_MS = 260;
+const GRID_SIZE = 9;
+const TILE_SIZE = 64;
+const TILE_GAP = 8;
+const BOARD_PADDING = 20;
+const SLIDE_DURATION_MS = 260;
 
-        const COLORS = {
-          bg: 0xf0f2f5,
-          floor: 0xdadfe5,
-          wall: 0x3d4652,
-          player: 0x2f80ed,
-        };
+const COLORS = {
+  bg: 0xf0f2f5,
+  floor: 0xdadfe5,
+  wall: 0x3d4652,
+  player: 0x2f80ed,
+  key: 0xf2c94c,
+  portalInactive: 0x9ca3af,
+  portalActive: 0x27ae60,
+};
 
-        const MAP_WALLS = [
-          { x: 0, y: 2 },
-          { x: 6, y: 2 },
-          { x: 0, y: 4 },
-          { x: 6, y: 4 },
-          { x: 2, y: 0 },
-          { x: 4, y: 0 },
-          { x: 2, y: 6 },
-          { x: 4, y: 6 },
-          { x: 3, y: 2 },
-          { x: 3, y: 4 },
-        ];
+const STAGE_LAYOUT_W1_S1 = [
+  '#########',
+  '#..P....#',
+  '#.###...#',
+  '#..k.k..#',
+  '#...S...#',
+  '#.....#.#',
+  '#...###.#',
+  '#.......#',
+  '#########',
+];
 
-        const PLAYER_START = { x: 3, y: 6 };
-        const CLICK_MIN_DISTANCE = 10;
+const parseStageLayout = (rows) => {
+  if (rows.length !== GRID_SIZE) {
+    throw new Error(`스테이지 행 수가 GRID_SIZE(${GRID_SIZE})와 다릅니다.`);
+  }
 
-        const getPixi = () => globalThis.PIXI ?? null;
-        const waitForPixi = async (timeoutMs = 3000) => {
-          const start = Date.now();
-          while (Date.now() - start < timeoutMs) {
-            const pixi = getPixi();
-            if (pixi) {
-              return pixi;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 16));
-          }
-          return null;
-        };
+  const walls = [];
+  const keys = [];
+  let start = null;
+  let portal = null;
 
-        const wallKey = (x, y) => `${x},${y}`;
+  for (let y = 0; y < rows.length; y += 1) {
+    const row = rows[y];
+    if (row.length !== GRID_SIZE) {
+      throw new Error(`스테이지 열 수가 GRID_SIZE(${GRID_SIZE})와 다릅니다. y=${y}`);
+    }
 
-        class Board {
-          constructor(stage, walls) {
-            this.stage = stage;
-            this.PIXI = getPixi();
-            if (!this.PIXI) {
-              throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
-            }
-            this.walls = new Set(walls.map((cell) => wallKey(cell.x, cell.y)));
+    for (let x = 0; x < row.length; x += 1) {
+      const ch = row[x];
+      if (ch === '#') {
+        walls.push({ x, y });
+      } else if (ch === 'k') {
+        keys.push({ x, y });
+      } else if (ch === 'S') {
+        if (start) {
+          throw new Error('시작 위치(S)는 1개여야 합니다.');
+        }
+        start = { x, y };
+      } else if (ch === 'P') {
+        if (portal) {
+          throw new Error('포탈(P)은 1개여야 합니다.');
+        }
+        portal = { x, y };
+      } else if (ch !== '.') {
+        throw new Error(`알 수 없는 스테이지 문자: ${ch}`);
+      }
+    }
+  }
 
-            this.container = new this.PIXI.Container();
-            this.stage.addChild(this.container);
+  if (!start) {
+    throw new Error('시작 위치(S)가 없습니다.');
+  }
+  if (!portal) {
+    throw new Error('포탈(P)이 없습니다.');
+  }
+  if (keys.length < 1) {
+    throw new Error(`키(k)는 최소 1개 이상이어야 합니다. 현재=${keys.length}`);
+  }
 
-            this.gridPixelSize = GRID_SIZE * TILE_SIZE + (GRID_SIZE - 1) * TILE_GAP;
-            this.boardPixelSize = this.gridPixelSize + BOARD_PADDING * 2;
+  return { walls, keys, start, portal };
+};
 
-            this.draw();
-          }
+const stage = parseStageLayout(STAGE_LAYOUT_W1_S1);
+const MAP_WALLS = stage.walls;
+const KEY_CELLS = stage.keys;
+const PLAYER_START = stage.start;
+const PORTAL_CELL = stage.portal;
 
-          layout(viewWidth, viewHeight) {
-            this.container.x = Math.floor((viewWidth - this.boardPixelSize) / 2);
-            this.container.y = Math.floor((viewHeight - this.boardPixelSize) / 2);
-          }
+const SWIPE_MIN_DISTANCE = 28;
 
-          draw() {
-            const bg = new this.PIXI.Graphics();
-            bg.beginFill(0xffffff);
-            bg.drawRoundedRect(0, 0, this.boardPixelSize, this.boardPixelSize, 24);
-            bg.endFill();
-            this.container.addChild(bg);
+const getPixi = () => globalThis.PIXI ?? null;
 
-            for (let y = 0; y < GRID_SIZE; y += 1) {
-              for (let x = 0; x < GRID_SIZE; x += 1) {
-                const tile = new this.PIXI.Graphics();
-                tile.beginFill(COLORS.floor);
-                tile.drawRoundedRect(0, 0, TILE_SIZE, TILE_SIZE, 12);
-                tile.endFill();
+const waitForPixi = async (timeoutMs = 3000) => {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const pixi = getPixi();
+    if (pixi) {
+      return pixi;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 16));
+  }
+  return null;
+};
 
-                const world = this.toPixel(x, y);
-                tile.x = world.x;
-                tile.y = world.y;
+const MAX_LOGS = 16;
 
-                this.container.addChild(tile);
+const now = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+};
 
-                if (this.isWall(x, y)) {
-                  const wall = new this.PIXI.Graphics();
-                  wall.beginFill(COLORS.wall);
-                  wall.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
-                  wall.endFill();
-                  wall.x = world.x;
-                  wall.y = world.y;
-                  this.container.addChild(wall);
-                }
-              }
-            }
-          }
+class DebugUI {
+  constructor(rootElement) {
+    this.rootElement = rootElement;
+    this.visible = false;
+    this.logs = [];
 
-          isWall(x, y) {
-            return this.walls.has(wallKey(x, y));
-          }
+    this.state = {
+      grid: '(?, ?)',
+      animating: false,
+      lastInput: '-',
+      lastMove: '-',
+      lastError: '-',
+    };
 
-          isInside(x, y) {
-            return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
-          }
+    this.build();
+    this.render();
+  }
 
-          canStand(x, y) {
-            return this.isInside(x, y) && !this.isWall(x, y);
-          }
+  build() {
+    this.button = document.createElement('button');
+    this.button.textContent = 'Debug';
+    this.button.style.position = 'fixed';
+    this.button.style.top = '12px';
+    this.button.style.right = '12px';
+    this.button.style.zIndex = '9999';
+    this.button.style.border = '0';
+    this.button.style.borderRadius = '10px';
+    this.button.style.padding = '8px 10px';
+    this.button.style.background = '#111827';
+    this.button.style.color = '#f9fafb';
+    this.button.style.fontSize = '12px';
+    this.button.style.cursor = 'pointer';
+    this.button.style.userSelect = 'none';
+    this.button.style.webkitUserSelect = 'none';
+    this.button.style.touchAction = 'manipulation';
 
-          toPixel(gridX, gridY) {
-            return {
-              x: BOARD_PADDING + gridX * (TILE_SIZE + TILE_GAP),
-              y: BOARD_PADDING + gridY * (TILE_SIZE + TILE_GAP),
-            };
+    this.panel = document.createElement('section');
+    this.panel.style.position = 'fixed';
+    this.panel.style.top = '48px';
+    this.panel.style.right = '12px';
+    this.panel.style.zIndex = '9998';
+    this.panel.style.width = 'min(90vw, 360px)';
+    this.panel.style.maxHeight = '70vh';
+    this.panel.style.overflow = 'auto';
+    this.panel.style.padding = '10px';
+    this.panel.style.borderRadius = '12px';
+    this.panel.style.background = 'rgba(17,24,39,0.92)';
+    this.panel.style.color = '#e5e7eb';
+    this.panel.style.font = '12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    this.panel.style.display = 'none';
+    this.panel.style.pointerEvents = 'none';
+
+    this.panel.innerHTML = `
+      <div style="margin-bottom:8px;font-weight:700;">Debug Overlay</div>
+      <div id="debug-state" style="white-space:pre-wrap;margin-bottom:8px;"></div>
+      <div style="margin-bottom:6px;font-weight:700;">Logs</div>
+      <div id="debug-logs" style="white-space:pre-wrap;"></div>
+    `;
+
+    this.button.addEventListener('click', () => {
+      this.visible = !this.visible;
+      this.render();
+    });
+
+    this.rootElement.appendChild(this.button);
+    this.rootElement.appendChild(this.panel);
+  }
+
+  setState(partial) {
+    this.state = { ...this.state, ...partial };
+    this.render();
+  }
+
+  logInput(message) {
+    this.pushLog(`INPUT ${message}`);
+    this.setState({ lastInput: message });
+  }
+
+  logMove(message) {
+    this.pushLog(`MOVE  ${message}`);
+    this.setState({ lastMove: message });
+  }
+
+  logError(message) {
+    this.pushLog(`ERROR ${message}`);
+    this.setState({ lastError: message });
+  }
+
+  pushLog(message) {
+    this.logs.unshift(`[${now()}] ${message}`);
+    if (this.logs.length > MAX_LOGS) {
+      this.logs.length = MAX_LOGS;
+    }
+    this.render();
+  }
+
+  render() {
+    this.panel.style.display = this.visible ? 'block' : 'none';
+    this.button.textContent = this.visible ? 'Debug On' : 'Debug';
+
+    const stateEl = this.panel.querySelector('#debug-state');
+    if (stateEl) {
+      stateEl.textContent = [
+        `grid: ${this.state.grid}`,
+        `animating: ${this.state.animating}`,
+        `lastInput: ${this.state.lastInput}`,
+        `lastMove: ${this.state.lastMove}`,
+        `lastError: ${this.state.lastError}`,
+      ].join('\n');
+    }
+
+    const logsEl = this.panel.querySelector('#debug-logs');
+    if (logsEl) {
+      logsEl.textContent = this.logs.join('\n') || '-';
+    }
+  }
+}
+
+
+const wallKey = (x, y) => `${x},${y}`;
+
+class Board {
+  constructor(stage, walls, keyCells, portalCell) {
+    this.stage = stage;
+    this.PIXI = getPixi();
+    if (!this.PIXI) {
+      throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
+    }
+    this.walls = new Set(walls.map((cell) => wallKey(cell.x, cell.y)));
+    this.keyCellsInitial = keyCells.map((cell) => ({ ...cell }));
+    this.keyCells = new Set(keyCells.map((cell) => wallKey(cell.x, cell.y)));
+    this.portalCell = { ...portalCell };
+    this.portalActive = false;
+
+    this.container = new this.PIXI.Container();
+    this.stage.addChild(this.container);
+    this.objectLayer = new this.PIXI.Container();
+
+    this.gridPixelSize = GRID_SIZE * TILE_SIZE + (GRID_SIZE - 1) * TILE_GAP;
+    this.boardPixelSize = this.gridPixelSize + BOARD_PADDING * 2;
+
+    this.draw();
+  }
+
+  layout(viewWidth, viewHeight) {
+    this.container.x = Math.floor((viewWidth - this.boardPixelSize) / 2);
+    this.container.y = Math.floor((viewHeight - this.boardPixelSize) / 2);
+  }
+
+  draw() {
+    const bg = new this.PIXI.Graphics();
+    bg.beginFill(0xffffff);
+    bg.drawRoundedRect(0, 0, this.boardPixelSize, this.boardPixelSize, 24);
+    bg.endFill();
+    this.container.addChild(bg);
+
+    for (let y = 0; y < GRID_SIZE; y += 1) {
+      for (let x = 0; x < GRID_SIZE; x += 1) {
+        const tile = new this.PIXI.Graphics();
+        tile.beginFill(COLORS.floor);
+        tile.drawRoundedRect(0, 0, TILE_SIZE, TILE_SIZE, 12);
+        tile.endFill();
+
+        const world = this.toPixel(x, y);
+        tile.x = world.x;
+        tile.y = world.y;
+
+        this.container.addChild(tile);
+
+        if (this.isWall(x, y)) {
+          const wall = new this.PIXI.Graphics();
+          wall.beginFill(COLORS.wall);
+          wall.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
+          wall.endFill();
+          wall.x = world.x;
+          wall.y = world.y;
+          this.container.addChild(wall);
+        }
+      }
+    }
+
+    this.container.addChild(this.objectLayer);
+    this.renderObjects();
+  }
+
+  renderObjects() {
+    this.objectLayer.removeChildren();
+    this.renderPortal();
+    this.renderKeys();
+  }
+
+  renderKeys() {
+    for (const key of this.keyCells) {
+      const [x, y] = key.split(',').map(Number);
+      const keyGraphic = new this.PIXI.Graphics();
+      keyGraphic.beginFill(COLORS.key);
+      keyGraphic.drawCircle(0, 0, TILE_SIZE * 0.18);
+      keyGraphic.endFill();
+      const pos = this.toPixel(x, y);
+      keyGraphic.x = pos.x + TILE_SIZE * 0.5;
+      keyGraphic.y = pos.y + TILE_SIZE * 0.5;
+      this.objectLayer.addChild(keyGraphic);
+    }
+  }
+
+  renderPortal() {
+    const portal = new this.PIXI.Graphics();
+    const pos = this.toPixel(this.portalCell.x, this.portalCell.y);
+    portal.x = pos.x + TILE_SIZE * 0.5;
+    portal.y = pos.y + TILE_SIZE * 0.5;
+
+    portal.lineStyle(4, 0xffffff, 0.75);
+    portal.beginFill(this.portalActive ? COLORS.portalActive : COLORS.portalInactive);
+    portal.drawCircle(0, 0, TILE_SIZE * 0.28);
+    portal.endFill();
+    this.objectLayer.addChild(portal);
+  }
+
+  isWall(x, y) {
+    return this.walls.has(wallKey(x, y));
+  }
+
+  isInside(x, y) {
+    return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE;
+  }
+
+  canStand(x, y) {
+    return this.isInside(x, y) && !this.isWall(x, y);
+  }
+
+  collectKeysOnPath(pathCells) {
+    let collected = 0;
+    for (const cell of pathCells) {
+      const key = wallKey(cell.x, cell.y);
+      if (this.keyCells.has(key)) {
+        this.keyCells.delete(key);
+        collected += 1;
+      }
+    }
+    if (collected > 0) {
+      this.renderObjects();
+    }
+    return collected;
+  }
+
+  setPortalActive(active) {
+    this.portalActive = active;
+    this.renderObjects();
+  }
+
+  isPortalOnPath(pathCells) {
+    return pathCells.some((cell) => cell.x === this.portalCell.x && cell.y === this.portalCell.y);
+  }
+
+  resetObjects() {
+    this.keyCells = new Set(this.keyCellsInitial.map((cell) => wallKey(cell.x, cell.y)));
+    this.portalActive = false;
+    this.renderObjects();
+  }
+
+  toPixel(gridX, gridY) {
+    return {
+      x: BOARD_PADDING + gridX * (TILE_SIZE + TILE_GAP),
+      y: BOARD_PADDING + gridY * (TILE_SIZE + TILE_GAP),
+    };
+  }
+}
+
+
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
+
+class Player {
+  constructor(board, startCell) {
+    this.board = board;
+    this.PIXI = getPixi();
+    if (!this.PIXI) {
+      throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
+    }
+
+    this.gridX = startCell.x;
+    this.gridY = startCell.y;
+
+    this.animating = false;
+    this.fromPx = { x: 0, y: 0 };
+    this.toPx = { x: 0, y: 0 };
+    this.elapsedMs = 0;
+
+    this.sprite = new this.PIXI.Graphics();
+    this.sprite.beginFill(COLORS.player);
+    this.sprite.drawCircle(0, 0, TILE_SIZE * 0.34);
+    this.sprite.endFill();
+    this.board.container.addChild(this.sprite);
+
+    this.syncSpriteToGrid();
+  }
+
+  syncSpriteToGrid() {
+    const cell = this.board.toPixel(this.gridX, this.gridY);
+    this.sprite.x = cell.x + TILE_SIZE * 0.5;
+    this.sprite.y = cell.y + TILE_SIZE * 0.5;
+  }
+
+  isAnimating() {
+    return this.animating;
+  }
+
+  getGridPosition() {
+    return { x: this.gridX, y: this.gridY };
+  }
+
+  resetTo(startCell) {
+    this.gridX = startCell.x;
+    this.gridY = startCell.y;
+    this.animating = false;
+    this.elapsedMs = 0;
+    this.syncSpriteToGrid();
+  }
+
+  trySlide(direction) {
+    if (this.animating) {
+      return { moved: false, reason: 'animating', path: [] };
+    }
+
+    const { dest, path } = this.findStopCell(direction.dx, direction.dy);
+    if (dest.x === this.gridX && dest.y === this.gridY) {
+      return { moved: false, reason: 'blocked', path: [] };
+    }
+
+    this.fromPx = { x: this.sprite.x, y: this.sprite.y };
+    const targetCellPx = this.board.toPixel(dest.x, dest.y);
+    this.toPx = {
+      x: targetCellPx.x + TILE_SIZE * 0.5,
+      y: targetCellPx.y + TILE_SIZE * 0.5,
+    };
+
+    this.gridX = dest.x;
+    this.gridY = dest.y;
+
+    this.elapsedMs = 0;
+    this.animating = true;
+    return { moved: true, path, dest };
+  }
+
+  update(deltaMs) {
+    if (!this.animating) {
+      return;
+    }
+
+    this.elapsedMs += deltaMs;
+    const normalized = Math.min(this.elapsedMs / SLIDE_DURATION_MS, 1);
+    const eased = easeInOutCubic(normalized);
+
+    this.sprite.x = this.fromPx.x + (this.toPx.x - this.fromPx.x) * eased;
+    this.sprite.y = this.fromPx.y + (this.toPx.y - this.fromPx.y) * eased;
+
+    if (normalized >= 1) {
+      this.animating = false;
+      this.syncSpriteToGrid();
+    }
+  }
+
+  findStopCell(dx, dy) {
+    let nextX = this.gridX;
+    let nextY = this.gridY;
+    const path = [];
+
+    while (this.board.canStand(nextX + dx, nextY + dy)) {
+      nextX += dx;
+      nextY += dy;
+      path.push({ x: nextX, y: nextY });
+    }
+
+    return { dest: { x: nextX, y: nextY }, path };
+  }
+}
+
+const DIRECTIONS = {
+  up: { dx: 0, dy: -1 },
+  down: { dx: 0, dy: 1 },
+  left: { dx: -1, dy: 0 },
+  right: { dx: 1, dy: 0 },
+};
+
+const CLICK_MIN_DISTANCE = 10;
+
+class DirectionClickInput {
+  constructor(targetElement, getOrigin, onDirection, hooks = {}) {
+    this.targetElement = targetElement;
+    this.getOrigin = getOrigin;
+    this.onDirection = onDirection;
+    this.hooks = hooks;
+
+    this.handlePointerDown = this.handlePointerDown.bind(this);
+    this.targetElement.addEventListener('pointerdown', this.handlePointerDown);
+  }
+
+  handlePointerDown(event) {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    const click = this.toRendererPoint(event.clientX, event.clientY);
+    const origin = this.getOrigin();
+    const dx = click.x - origin.x;
+    const dy = click.y - origin.y;
+
+    this.hooks.onClick?.({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      x: click.x,
+      y: click.y,
+      originX: origin.x,
+      originY: origin.y,
+      dx,
+      dy,
+    });
+
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (Math.max(absX, absY) < CLICK_MIN_DISTANCE) {
+      this.hooks.onDecision?.({ accepted: false, reason: 'too_close', dx, dy });
+      return;
+    }
+
+    const directionName = absX > absY ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    this.onDirection(DIRECTIONS[directionName]);
+    this.hooks.onDecision?.({ accepted: true, directionName, dx, dy });
+  }
+
+  toRendererPoint(clientX, clientY) {
+    const rect = this.targetElement.getBoundingClientRect();
+    const rendererWidth = this.targetElement.width || rect.width;
+    const rendererHeight = this.targetElement.height || rect.height;
+    const scaleX = rendererWidth / rect.width;
+    const scaleY = rendererHeight / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }
+}
+
+
+let debugUi = null;
+let keyHudEl = null;
+let clearEl = null;
+let resetButtonEl = null;
+
+const bootstrap = async () => {
+  const root = document.getElementById('app');
+
+  if (!root) {
+    throw new Error('app container(#app)을 찾지 못했습니다.');
+  }
+  debugUi = new DebugUI(root);
+  setupGlobalErrorCapture();
+
+  const app = await createPixiApp(root);
+  root.appendChild(app.canvas ?? app.view);
+
+  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL);
+  const player = new Player(board, PLAYER_START);
+  const state = {
+    keyCollected: 0,
+    keyGoal: KEY_CELLS.length,
+    clear: false,
+    portalActive: false,
+  };
+
+  createHud(root);
+  updateHud(state);
+
+  const initial = player.getGridPosition();
+  debugUi.setState({ grid: `(${initial.x}, ${initial.y})`, animating: player.isAnimating() });
+
+  const layout = () => {
+    board.layout(app.renderer.width, app.renderer.height);
+  };
+  layout();
+
+  window.addEventListener('resize', layout);
+
+  new DirectionClickInput(
+    app.canvas ?? app.view,
+    () => getPlayerRendererPosition(player, board),
+    (direction) => {
+      if (state.clear) {
+        return;
+      }
+
+      const before = player.getGridPosition();
+      const wasAnimating = player.isAnimating();
+      const slideResult = wasAnimating ? { moved: false, path: [] } : player.trySlide(direction);
+      const moved = slideResult.moved;
+
+      if (moved) {
+        const gained = board.collectKeysOnPath(slideResult.path);
+        if (gained > 0) {
+          state.keyCollected += gained;
+          if (state.keyCollected >= state.keyGoal && !state.portalActive) {
+            state.portalActive = true;
+            board.setPortalActive(true);
           }
         }
 
-        const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
-
-        class Player {
-          constructor(board, startCell) {
-            this.board = board;
-            this.PIXI = getPixi();
-            if (!this.PIXI) {
-              throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
-            }
-
-            this.gridX = startCell.x;
-            this.gridY = startCell.y;
-
-            this.animating = false;
-            this.fromPx = { x: 0, y: 0 };
-            this.toPx = { x: 0, y: 0 };
-            this.elapsedMs = 0;
-
-            this.sprite = new this.PIXI.Graphics();
-            this.sprite.beginFill(COLORS.player);
-            this.sprite.drawCircle(0, 0, TILE_SIZE * 0.34);
-            this.sprite.endFill();
-            this.board.container.addChild(this.sprite);
-
-            this.syncSpriteToGrid();
-          }
-
-          syncSpriteToGrid() {
-            const cell = this.board.toPixel(this.gridX, this.gridY);
-            this.sprite.x = cell.x + TILE_SIZE * 0.5;
-            this.sprite.y = cell.y + TILE_SIZE * 0.5;
-          }
-
-          isAnimating() {
-            return this.animating;
-          }
-
-          getGridPosition() {
-            return { x: this.gridX, y: this.gridY };
-          }
-
-          trySlide(direction) {
-            if (this.animating) {
-              return false;
-            }
-
-            const dest = this.findStopCell(direction.dx, direction.dy);
-            if (dest.x === this.gridX && dest.y === this.gridY) {
-              return false;
-            }
-
-            this.fromPx = { x: this.sprite.x, y: this.sprite.y };
-            const targetCellPx = this.board.toPixel(dest.x, dest.y);
-            this.toPx = {
-              x: targetCellPx.x + TILE_SIZE * 0.5,
-              y: targetCellPx.y + TILE_SIZE * 0.5,
-            };
-
-            this.gridX = dest.x;
-            this.gridY = dest.y;
-
-            this.elapsedMs = 0;
-            this.animating = true;
-            return true;
-          }
-
-          update(deltaMs) {
-            if (!this.animating) {
-              return;
-            }
-
-            this.elapsedMs += deltaMs;
-            const normalized = Math.min(this.elapsedMs / SLIDE_DURATION_MS, 1);
-            const eased = easeInOutCubic(normalized);
-
-            this.sprite.x = this.fromPx.x + (this.toPx.x - this.fromPx.x) * eased;
-            this.sprite.y = this.fromPx.y + (this.toPx.y - this.fromPx.y) * eased;
-
-            if (normalized >= 1) {
-              this.animating = false;
-              this.syncSpriteToGrid();
-            }
-          }
-
-          findStopCell(dx, dy) {
-            let nextX = this.gridX;
-            let nextY = this.gridY;
-
-            while (this.board.canStand(nextX + dx, nextY + dy)) {
-              nextX += dx;
-              nextY += dy;
-            }
-
-            return { x: nextX, y: nextY };
-          }
+        if (state.portalActive && board.isPortalOnPath(slideResult.path)) {
+          state.clear = true;
+          showClear();
         }
+        updateHud(state);
+      }
 
-        const DIRECTIONS = {
-          up: { dx: 0, dy: -1 },
-          down: { dx: 0, dy: 1 },
-          left: { dx: -1, dy: 0 },
-          right: { dx: 1, dy: 0 },
-        };
+      const after = player.getGridPosition();
+      debugUi.logMove(
+        `before=(${before.x},${before.y}) after=(${after.x},${after.y}) anim=${wasAnimating} moved=${moved}`
+      );
+      debugUi.setState({ grid: `(${after.x}, ${after.y})`, animating: player.isAnimating() });
+    },
+    {
+      onClick: ({ x, y, originX, originY, dx, dy }) => {
+        debugUi.logInput(
+          `click at=(${Math.round(x)},${Math.round(y)}) origin=(${Math.round(originX)},${Math.round(
+            originY
+          )}) dx=${Math.round(dx)} dy=${Math.round(dy)}`
+        );
+      },
+      onDecision: ({ accepted, directionName, reason, dx, dy }) => {
+        const direction = directionName ?? `rejected:${reason}`;
+        debugUi.logInput(
+          `decision dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${direction} accepted=${accepted}`
+        );
+      },
+    }
+  );
 
-        class DirectionClickInput {
-          constructor(targetElement, getOrigin, onDirection, hooks = {}) {
-            this.targetElement = targetElement;
-            this.getOrigin = getOrigin;
-            this.onDirection = onDirection;
-            this.hooks = hooks;
+  resetButtonEl.addEventListener('click', () => {
+    state.keyCollected = 0;
+    state.clear = false;
+    state.portalActive = false;
+    player.resetTo(PLAYER_START);
+    board.resetObjects();
+    hideClear();
+    updateHud(state);
+    const pos = player.getGridPosition();
+    debugUi.logInput('reset');
+    debugUi.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
+  });
 
-            this.handlePointerDown = this.handlePointerDown.bind(this);
-            this.targetElement.addEventListener('pointerdown', this.handlePointerDown);
-          }
+  app.ticker.add(() => {
+    const deltaMs = app.ticker.deltaMS;
+    player.update(deltaMs);
+    const pos = player.getGridPosition();
+    debugUi.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
+  });
+};
 
-          handlePointerDown(event) {
-            if (event.button !== undefined && event.button !== 0) {
-              return;
-            }
+const createPixiApp = async (root) => {
+  const PIXI = await waitForPixi(3000);
+  if (!PIXI) {
+    throw new Error('PixiJS 로딩 실패: 네트워크 또는 CDN 접근 상태를 확인하세요.');
+  }
 
-            const click = this.toRendererPoint(event.clientX, event.clientY);
-            const origin = this.getOrigin();
-            const dx = click.x - origin.x;
-            const dy = click.y - origin.y;
+  const options = {
+    backgroundColor: COLORS.bg,
+    resizeTo: root,
+    antialias: true,
+  };
 
-            this.hooks.onClick?.({
-              clientX: event.clientX,
-              clientY: event.clientY,
-              x: click.x,
-              y: click.y,
-              originX: origin.x,
-              originY: origin.y,
-              dx,
-              dy,
-            });
+  const app = new PIXI.Application(options);
+  if (typeof app.init === 'function') {
+    await app.init({
+      background: COLORS.bg,
+      resizeTo: root,
+      antialias: true,
+    });
+  }
 
-            const absX = Math.abs(dx);
-            const absY = Math.abs(dy);
+  return app;
+};
 
-            if (Math.max(absX, absY) < CLICK_MIN_DISTANCE) {
-              this.hooks.onDecision?.({ accepted: false, reason: 'too_close', dx, dy });
-              return;
-            }
+const createHud = (root) => {
+  keyHudEl = document.createElement('div');
+  keyHudEl.style.position = 'fixed';
+  keyHudEl.style.top = '12px';
+  keyHudEl.style.left = '12px';
+  keyHudEl.style.zIndex = '9000';
+  keyHudEl.style.padding = '8px 10px';
+  keyHudEl.style.borderRadius = '10px';
+  keyHudEl.style.background = 'rgba(17,24,39,0.85)';
+  keyHudEl.style.color = '#f9fafb';
+  keyHudEl.style.font = '600 14px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
 
-            const directionName = absX > absY ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-            this.onDirection(DIRECTIONS[directionName]);
-            this.hooks.onDecision?.({ accepted: true, directionName, dx, dy });
-          }
+  resetButtonEl = document.createElement('button');
+  resetButtonEl.textContent = 'Reset';
+  resetButtonEl.style.position = 'fixed';
+  resetButtonEl.style.bottom = '16px';
+  resetButtonEl.style.right = '16px';
+  resetButtonEl.style.zIndex = '9000';
+  resetButtonEl.style.border = '0';
+  resetButtonEl.style.borderRadius = '10px';
+  resetButtonEl.style.padding = '10px 14px';
+  resetButtonEl.style.background = '#111827';
+  resetButtonEl.style.color = '#f9fafb';
+  resetButtonEl.style.font = '600 14px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+  resetButtonEl.style.cursor = 'pointer';
 
-          toRendererPoint(clientX, clientY) {
-            const rect = this.targetElement.getBoundingClientRect();
-            const rendererWidth = this.targetElement.width || rect.width;
-            const rendererHeight = this.targetElement.height || rect.height;
-            const scaleX = rendererWidth / rect.width;
-            const scaleY = rendererHeight / rect.height;
+  clearEl = document.createElement('div');
+  clearEl.textContent = 'CLEAR!';
+  clearEl.style.position = 'fixed';
+  clearEl.style.top = '50%';
+  clearEl.style.left = '50%';
+  clearEl.style.transform = 'translate(-50%, -50%)';
+  clearEl.style.zIndex = '9001';
+  clearEl.style.padding = '14px 24px';
+  clearEl.style.borderRadius = '12px';
+  clearEl.style.background = 'rgba(39,174,96,0.92)';
+  clearEl.style.color = '#ffffff';
+  clearEl.style.font = '700 28px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+  clearEl.style.display = 'none';
 
-            return {
-              x: (clientX - rect.left) * scaleX,
-              y: (clientY - rect.top) * scaleY,
-            };
-          }
+  root.appendChild(keyHudEl);
+  root.appendChild(resetButtonEl);
+  root.appendChild(clearEl);
+};
+
+const updateHud = (state) => {
+  if (!keyHudEl) {
+    return;
+  }
+  keyHudEl.textContent = `KEY ${state.keyCollected}/${state.keyGoal}`;
+};
+
+const showClear = () => {
+  if (clearEl) {
+    clearEl.style.display = 'block';
+  }
+};
+
+const hideClear = () => {
+  if (clearEl) {
+    clearEl.style.display = 'none';
+  }
+};
+
+const getPlayerRendererPosition = (player, board) => ({
+  x: board.container.x + player.sprite.x,
+  y: board.container.y + player.sprite.y,
+});
+
+const setupGlobalErrorCapture = () => {
+  window.addEventListener('error', (event) => {
+    const message = event.error?.stack || event.message || 'unknown error';
+    debugUi?.logError(message);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const message = event.reason?.stack || String(event.reason);
+    debugUi?.logError(`promise: ${message}`);
+  });
+
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    const message = args
+      .map((item) => {
+        if (item instanceof Error) {
+          return item.stack || item.message;
         }
-
-        const MAX_LOGS = 16;
-
-        const now = () => {
-          const d = new Date();
-          return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-        };
-
-        class DebugUI {
-          constructor(rootElement) {
-            this.rootElement = rootElement;
-            this.visible = false;
-            this.logs = [];
-
-            this.state = {
-              grid: '(?, ?)',
-              animating: false,
-              lastInput: '-',
-              lastMove: '-',
-              lastError: '-',
-            };
-
-            this.build();
-            this.render();
-          }
-
-          build() {
-            this.button = document.createElement('button');
-            this.button.textContent = 'Debug';
-            this.button.style.position = 'fixed';
-            this.button.style.top = '12px';
-            this.button.style.right = '12px';
-            this.button.style.zIndex = '9999';
-            this.button.style.border = '0';
-            this.button.style.borderRadius = '10px';
-            this.button.style.padding = '8px 10px';
-            this.button.style.background = '#111827';
-            this.button.style.color = '#f9fafb';
-            this.button.style.fontSize = '12px';
-            this.button.style.cursor = 'pointer';
-            this.button.style.userSelect = 'none';
-            this.button.style.webkitUserSelect = 'none';
-            this.button.style.touchAction = 'manipulation';
-
-            this.panel = document.createElement('section');
-            this.panel.style.position = 'fixed';
-            this.panel.style.top = '48px';
-            this.panel.style.right = '12px';
-            this.panel.style.zIndex = '9998';
-            this.panel.style.width = 'min(90vw, 360px)';
-            this.panel.style.maxHeight = '70vh';
-            this.panel.style.overflow = 'auto';
-            this.panel.style.padding = '10px';
-            this.panel.style.borderRadius = '12px';
-            this.panel.style.background = 'rgba(17,24,39,0.92)';
-            this.panel.style.color = '#e5e7eb';
-            this.panel.style.font = '12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-            this.panel.style.display = 'none';
-            this.panel.style.pointerEvents = 'none';
-
-            this.panel.innerHTML = `
-              <div style="margin-bottom:8px;font-weight:700;">Debug Overlay</div>
-              <div id="debug-state" style="white-space:pre-wrap;margin-bottom:8px;"></div>
-              <div style="margin-bottom:6px;font-weight:700;">Logs</div>
-              <div id="debug-logs" style="white-space:pre-wrap;"></div>
-            `;
-
-            this.button.addEventListener('click', () => {
-              this.visible = !this.visible;
-              this.render();
-            });
-
-            this.rootElement.appendChild(this.button);
-            this.rootElement.appendChild(this.panel);
-          }
-
-          setState(partial) {
-            this.state = { ...this.state, ...partial };
-            this.render();
-          }
-
-          logInput(message) {
-            this.pushLog(`INPUT ${message}`);
-            this.setState({ lastInput: message });
-          }
-
-          logMove(message) {
-            this.pushLog(`MOVE  ${message}`);
-            this.setState({ lastMove: message });
-          }
-
-          logError(message) {
-            this.pushLog(`ERROR ${message}`);
-            this.setState({ lastError: message });
-          }
-
-          pushLog(message) {
-            this.logs.unshift(`[${now()}] ${message}`);
-            if (this.logs.length > MAX_LOGS) {
-              this.logs.length = MAX_LOGS;
-            }
-            this.render();
-          }
-
-          render() {
-            this.panel.style.display = this.visible ? 'block' : 'none';
-            this.button.textContent = this.visible ? 'Debug On' : 'Debug';
-
-            const stateEl = this.panel.querySelector('#debug-state');
-            if (stateEl) {
-              stateEl.textContent = [
-                `grid: ${this.state.grid}`,
-                `animating: ${this.state.animating}`,
-                `lastInput: ${this.state.lastInput}`,
-                `lastMove: ${this.state.lastMove}`,
-                `lastError: ${this.state.lastError}`,
-              ].join('\n');
-            }
-
-            const logsEl = this.panel.querySelector('#debug-logs');
-            if (logsEl) {
-              logsEl.textContent = this.logs.join('\n') || '-';
-            }
-          }
+        if (typeof item === 'string') {
+          return item;
         }
+        try {
+          return JSON.stringify(item);
+        } catch {
+          return String(item);
+        }
+      })
+      .join(' ');
+    debugUi?.logError(message);
+    originalConsoleError(...args);
+  };
+};
 
-        let debugUi = null;
+bootstrap().catch((error) => {
+  console.error(error);
+  const root = document.getElementById('app');
+  if (root) {
+    root.innerHTML = '<pre style="padding:16px;color:#b00020;">초기화 실패: 콘솔 오류를 확인하세요.</pre>';
+  }
+});
 
-        const getPlayerRendererPosition = (player, board) => ({
-          x: board.container.x + player.sprite.x,
-          y: board.container.y + player.sprite.y,
-        });
-
-        const setupGlobalErrorCapture = () => {
-          window.addEventListener('error', (event) => {
-            const message = event.error?.stack || event.message || 'unknown error';
-            debugUi?.logError(message);
-          });
-
-          window.addEventListener('unhandledrejection', (event) => {
-            const message = event.reason?.stack || String(event.reason);
-            debugUi?.logError(`promise: ${message}`);
-          });
-
-          const originalConsoleError = console.error.bind(console);
-          console.error = (...args) => {
-            const message = args
-              .map((item) => {
-                if (item instanceof Error) {
-                  return item.stack || item.message;
-                }
-                if (typeof item === 'string') {
-                  return item;
-                }
-                try {
-                  return JSON.stringify(item);
-                } catch {
-                  return String(item);
-                }
-              })
-              .join(' ');
-            debugUi?.logError(message);
-            originalConsoleError(...args);
-          };
-        };
-
-        const createPixiApp = async (root) => {
-          const PIXI = await waitForPixi(3000);
-          if (!PIXI) {
-            throw new Error('PixiJS 로딩 실패: 네트워크 또는 CDN 접근 상태를 확인하세요.');
-          }
-
-          const options = {
-            backgroundColor: COLORS.bg,
-            resizeTo: root,
-            antialias: true,
-          };
-
-          const app = new PIXI.Application(options);
-          if (typeof app.init === 'function') {
-            await app.init({
-              background: COLORS.bg,
-              resizeTo: root,
-              antialias: true,
-            });
-          }
-
-          return app;
-        };
-
-        const bootstrap = async () => {
-          const root = document.getElementById('app');
-          if (!root) {
-            throw new Error('app container(#app)을 찾지 못했습니다.');
-          }
-
-          debugUi = new DebugUI(root);
-          setupGlobalErrorCapture();
-
-          const app = await createPixiApp(root);
-          root.appendChild(app.canvas ?? app.view);
-
-          const board = new Board(app.stage, MAP_WALLS);
-          const player = new Player(board, PLAYER_START);
-          const initial = player.getGridPosition();
-          debugUi.setState({ grid: `(${initial.x}, ${initial.y})`, animating: player.isAnimating() });
-
-          const layout = () => {
-            board.layout(app.renderer.width, app.renderer.height);
-          };
-          layout();
-          window.addEventListener('resize', layout);
-
-          new DirectionClickInput(
-            app.canvas ?? app.view,
-            () => getPlayerRendererPosition(player, board),
-            (direction) => {
-              const before = player.getGridPosition();
-              const wasAnimating = player.isAnimating();
-              const moved = !wasAnimating && player.trySlide(direction);
-              const after = player.getGridPosition();
-              debugUi.logMove(
-                `before=(${before.x},${before.y}) after=(${after.x},${after.y}) anim=${wasAnimating} moved=${moved}`
-              );
-              debugUi.setState({ grid: `(${after.x}, ${after.y})`, animating: player.isAnimating() });
-            },
-            {
-              onClick: ({ x, y, originX, originY, dx, dy }) => {
-                debugUi.logInput(
-                  `click at=(${Math.round(x)},${Math.round(y)}) origin=(${Math.round(originX)},${Math.round(
-                    originY
-                  )}) dx=${Math.round(dx)} dy=${Math.round(dy)}`
-                );
-              },
-              onDecision: ({ accepted, directionName, reason, dx, dy }) => {
-                const direction = directionName ?? `rejected:${reason}`;
-                debugUi.logInput(
-                  `decision dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${direction} accepted=${accepted}`
-                );
-              },
-            }
-          );
-
-          app.ticker.add(() => {
-            const deltaMs = app.ticker.deltaMS;
-            player.update(deltaMs);
-            const pos = player.getGridPosition();
-            debugUi.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
-          });
-        };
-
-        bootstrap().catch((error) => {
-          console.error(error);
-          const root = document.getElementById('app');
-          if (root) {
-            root.innerHTML = '<pre style="padding:16px;color:#b00020;">초기화 실패: 콘솔 오류를 확인하세요.</pre>';
-          }
-        });
       })();
     </script>
   </body>

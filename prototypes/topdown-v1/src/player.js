@@ -42,14 +42,22 @@ export class Player {
     return { x: this.gridX, y: this.gridY };
   }
 
+  resetTo(startCell) {
+    this.gridX = startCell.x;
+    this.gridY = startCell.y;
+    this.animating = false;
+    this.elapsedMs = 0;
+    this.syncSpriteToGrid();
+  }
+
   trySlide(direction) {
     if (this.animating) {
-      return false;
+      return { moved: false, reason: 'animating', path: [] };
     }
 
-    const dest = this.findStopCell(direction.dx, direction.dy);
+    const { dest, path } = this.findStopCell(direction.dx, direction.dy);
     if (dest.x === this.gridX && dest.y === this.gridY) {
-      return false;
+      return { moved: false, reason: 'blocked', path: [] };
     }
 
     this.fromPx = { x: this.sprite.x, y: this.sprite.y };
@@ -64,7 +72,7 @@ export class Player {
 
     this.elapsedMs = 0;
     this.animating = true;
-    return true;
+    return { moved: true, path, dest };
   }
 
   update(deltaMs) {
@@ -88,12 +96,14 @@ export class Player {
   findStopCell(dx, dy) {
     let nextX = this.gridX;
     let nextY = this.gridY;
+    const path = [];
 
     while (this.board.canStand(nextX + dx, nextY + dy)) {
       nextX += dx;
       nextY += dy;
+      path.push({ x: nextX, y: nextY });
     }
 
-    return { x: nextX, y: nextY };
+    return { dest: { x: nextX, y: nextY }, path };
   }
 }

@@ -1,11 +1,14 @@
 import { Board } from './board.js';
-import { COLORS, MAP_WALLS, PLAYER_START } from './config.js';
+import { COLORS, KEY_CELLS, MAP_WALLS, PLAYER_START, PORTAL_CELL } from './config.js';
 import { DebugUI } from './debug-ui.js';
 import { DirectionClickInput } from './input.js';
 import { Player } from './player.js';
 import { waitForPixi } from './pixi.js';
 
 let debugUi = null;
+let keyHudEl = null;
+let clearEl = null;
+let resetButtonEl = null;
 
 const bootstrap = async () => {
   const root = document.getElementById('app');
@@ -19,8 +22,18 @@ const bootstrap = async () => {
   const app = await createPixiApp(root);
   root.appendChild(app.canvas ?? app.view);
 
-  const board = new Board(app.stage, MAP_WALLS);
+  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL);
   const player = new Player(board, PLAYER_START);
+  const state = {
+    keyCollected: 0,
+    keyGoal: KEY_CELLS.length,
+    clear: false,
+    portalActive: false,
+  };
+
+  createHud(root);
+  updateHud(state);
+
   const initial = player.getGridPosition();
   debugUi.setState({ grid: `(${initial.x}, ${initial.y})`, animating: player.isAnimating() });
 
@@ -35,9 +48,32 @@ const bootstrap = async () => {
     app.canvas ?? app.view,
     () => getPlayerRendererPosition(player, board),
     (direction) => {
+      if (state.clear) {
+        return;
+      }
+
       const before = player.getGridPosition();
       const wasAnimating = player.isAnimating();
-      const moved = !wasAnimating && player.trySlide(direction);
+      const slideResult = wasAnimating ? { moved: false, path: [] } : player.trySlide(direction);
+      const moved = slideResult.moved;
+
+      if (moved) {
+        const gained = board.collectKeysOnPath(slideResult.path);
+        if (gained > 0) {
+          state.keyCollected += gained;
+          if (state.keyCollected >= state.keyGoal && !state.portalActive) {
+            state.portalActive = true;
+            board.setPortalActive(true);
+          }
+        }
+
+        if (state.portalActive && board.isPortalOnPath(slideResult.path)) {
+          state.clear = true;
+          showClear();
+        }
+        updateHud(state);
+      }
+
       const after = player.getGridPosition();
       debugUi.logMove(
         `before=(${before.x},${before.y}) after=(${after.x},${after.y}) anim=${wasAnimating} moved=${moved}`
@@ -60,6 +96,19 @@ const bootstrap = async () => {
       },
     }
   );
+
+  resetButtonEl.addEventListener('click', () => {
+    state.keyCollected = 0;
+    state.clear = false;
+    state.portalActive = false;
+    player.resetTo(PLAYER_START);
+    board.resetObjects();
+    hideClear();
+    updateHud(state);
+    const pos = player.getGridPosition();
+    debugUi.logInput('reset');
+    debugUi.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
+  });
 
   app.ticker.add(() => {
     const deltaMs = app.ticker.deltaMS;
@@ -91,6 +140,70 @@ const createPixiApp = async (root) => {
   }
 
   return app;
+};
+
+const createHud = (root) => {
+  keyHudEl = document.createElement('div');
+  keyHudEl.style.position = 'fixed';
+  keyHudEl.style.top = '12px';
+  keyHudEl.style.left = '12px';
+  keyHudEl.style.zIndex = '9000';
+  keyHudEl.style.padding = '8px 10px';
+  keyHudEl.style.borderRadius = '10px';
+  keyHudEl.style.background = 'rgba(17,24,39,0.85)';
+  keyHudEl.style.color = '#f9fafb';
+  keyHudEl.style.font = '600 14px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+
+  resetButtonEl = document.createElement('button');
+  resetButtonEl.textContent = 'Reset';
+  resetButtonEl.style.position = 'fixed';
+  resetButtonEl.style.bottom = '16px';
+  resetButtonEl.style.right = '16px';
+  resetButtonEl.style.zIndex = '9000';
+  resetButtonEl.style.border = '0';
+  resetButtonEl.style.borderRadius = '10px';
+  resetButtonEl.style.padding = '10px 14px';
+  resetButtonEl.style.background = '#111827';
+  resetButtonEl.style.color = '#f9fafb';
+  resetButtonEl.style.font = '600 14px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+  resetButtonEl.style.cursor = 'pointer';
+
+  clearEl = document.createElement('div');
+  clearEl.textContent = 'CLEAR!';
+  clearEl.style.position = 'fixed';
+  clearEl.style.top = '50%';
+  clearEl.style.left = '50%';
+  clearEl.style.transform = 'translate(-50%, -50%)';
+  clearEl.style.zIndex = '9001';
+  clearEl.style.padding = '14px 24px';
+  clearEl.style.borderRadius = '12px';
+  clearEl.style.background = 'rgba(39,174,96,0.92)';
+  clearEl.style.color = '#ffffff';
+  clearEl.style.font = '700 28px/1.2 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+  clearEl.style.display = 'none';
+
+  root.appendChild(keyHudEl);
+  root.appendChild(resetButtonEl);
+  root.appendChild(clearEl);
+};
+
+const updateHud = (state) => {
+  if (!keyHudEl) {
+    return;
+  }
+  keyHudEl.textContent = `KEY ${state.keyCollected}/${state.keyGoal}`;
+};
+
+const showClear = () => {
+  if (clearEl) {
+    clearEl.style.display = 'block';
+  }
+};
+
+const hideClear = () => {
+  if (clearEl) {
+    clearEl.style.display = 'none';
+  }
 };
 
 const getPlayerRendererPosition = (player, board) => ({
