@@ -12,14 +12,18 @@ export const COLORS = {
 };
 
 export const MAP_WALLS = [
-  { x: 1, y: 1 },
-  { x: 4, y: 1 },
-  { x: 2, y: 3 },
-  { x: 5, y: 3 },
-  { x: 1, y: 5 },
-  { x: 4, y: 5 },
+  { x: 0, y: 2 },
+  { x: 6, y: 2 },
+  { x: 0, y: 4 },
+  { x: 6, y: 4 },
+  { x: 2, y: 0 },
+  { x: 4, y: 0 },
+  { x: 2, y: 6 },
+  { x: 4, y: 6 },
+  { x: 3, y: 2 },
+  { x: 3, y: 4 },
 ];
 
-export const PLAYER_START = { x: 0, y: 6 };
+export const PLAYER_START = { x: 3, y: 6 };
 
 export const SWIPE_MIN_DISTANCE = 28;
