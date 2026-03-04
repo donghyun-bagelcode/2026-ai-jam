@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <link rel="icon" href="data:," />
     <title>Slide Puzzle Prototype (Standalone)</title>
     <style>
       html,
@@ -26,9 +27,27 @@
   <body>
     <div id="app"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js-legacy@7.4.2/dist/pixi-legacy.min.js"></script>
     <script>
-      (() => {
+      (function () {
+        const app = document.getElementById('app');
+        const loadScript = (src) =>
+          new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+
+        (async () => {
+          try {
+            try {
+              await loadScript('https://cdn.jsdelivr.net/npm/pixi.js-legacy@7.4.2/dist/pixi-legacy.min.js');
+            } catch (err) {
+              await loadScript('https://unpkg.com/pixi.js-legacy@7.4.2/dist/pixi-legacy.min.js');
+            }
+
+// ----- config.js -----
 const GRID_SIZE = 9;
 const TILE_SIZE = 64;
 const TILE_GAP = 8;
@@ -43,6 +62,10 @@ const COLORS = {
   key: 0xf2c94c,
   portalInactive: 0x9ca3af,
   portalActive: 0x27ae60,
+};
+
+const ASSET_PATHS = {
+  tile: './image/tile.png',
 };
 
 const STAGE_LAYOUT_W1_S1 = [
@@ -116,6 +139,7 @@ const PORTAL_CELL = stage.portal;
 
 const SWIPE_MIN_DISTANCE = 28;
 
+// ----- pixi.js -----
 const getPixi = () => globalThis.PIXI ?? null;
 
 const waitForPixi = async (timeoutMs = 3000) => {
@@ -130,6 +154,7 @@ const waitForPixi = async (timeoutMs = 3000) => {
   return null;
 };
 
+// ----- debug-ui.js -----
 const MAX_LOGS = 16;
 
 const now = () => {
@@ -255,16 +280,86 @@ class DebugUI {
   }
 }
 
+// ----- input.js -----
+const DIRECTIONS = {
+  up: { dx: 0, dy: -1 },
+  down: { dx: 0, dy: 1 },
+  left: { dx: -1, dy: 0 },
+  right: { dx: 1, dy: 0 },
+};
 
+const CLICK_MIN_DISTANCE = 10;
+
+class DirectionClickInput {
+  constructor(targetElement, getOrigin, onDirection, hooks = {}) {
+    this.targetElement = targetElement;
+    this.getOrigin = getOrigin;
+    this.onDirection = onDirection;
+    this.hooks = hooks;
+
+    this.handlePointerDown = this.handlePointerDown.bind(this);
+    this.targetElement.addEventListener('pointerdown', this.handlePointerDown);
+  }
+
+  handlePointerDown(event) {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    const click = this.toRendererPoint(event.clientX, event.clientY);
+    const origin = this.getOrigin();
+    const dx = click.x - origin.x;
+    const dy = click.y - origin.y;
+
+    this.hooks.onClick?.({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      x: click.x,
+      y: click.y,
+      originX: origin.x,
+      originY: origin.y,
+      dx,
+      dy,
+    });
+
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (Math.max(absX, absY) < CLICK_MIN_DISTANCE) {
+      this.hooks.onDecision?.({ accepted: false, reason: 'too_close', dx, dy });
+      return;
+    }
+
+    const directionName = absX > absY ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    this.onDirection(DIRECTIONS[directionName]);
+    this.hooks.onDecision?.({ accepted: true, directionName, dx, dy });
+  }
+
+  toRendererPoint(clientX, clientY) {
+    const rect = this.targetElement.getBoundingClientRect();
+    const rendererWidth = this.targetElement.width || rect.width;
+    const rendererHeight = this.targetElement.height || rect.height;
+    const scaleX = rendererWidth / rect.width;
+    const scaleY = rendererHeight / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }
+}
+
+// ----- board.js -----
 const wallKey = (x, y) => `${x},${y}`;
 
 class Board {
-  constructor(stage, walls, keyCells, portalCell) {
+  constructor(stage, walls, keyCells, portalCell, textures) {
     this.stage = stage;
     this.PIXI = getPixi();
     if (!this.PIXI) {
       throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
     }
+    this.textures = textures;
     this.walls = new Set(walls.map((cell) => wallKey(cell.x, cell.y)));
     this.keyCellsInitial = keyCells.map((cell) => ({ ...cell }));
     this.keyCells = new Set(keyCells.map((cell) => wallKey(cell.x, cell.y)));
@@ -295,10 +390,9 @@ class Board {
 
     for (let y = 0; y < GRID_SIZE; y += 1) {
       for (let x = 0; x < GRID_SIZE; x += 1) {
-        const tile = new this.PIXI.Graphics();
-        tile.beginFill(COLORS.floor);
-        tile.drawRoundedRect(0, 0, TILE_SIZE, TILE_SIZE, 12);
-        tile.endFill();
+        const tile = new this.PIXI.Sprite(this.textures.tile);
+        tile.width = TILE_SIZE;
+        tile.height = TILE_SIZE;
 
         const world = this.toPixel(x, y);
         tile.x = world.x;
@@ -405,7 +499,7 @@ class Board {
   }
 }
 
-
+// ----- player.js -----
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
 
 class Player {
@@ -516,75 +610,7 @@ class Player {
   }
 }
 
-const DIRECTIONS = {
-  up: { dx: 0, dy: -1 },
-  down: { dx: 0, dy: 1 },
-  left: { dx: -1, dy: 0 },
-  right: { dx: 1, dy: 0 },
-};
-
-const CLICK_MIN_DISTANCE = 10;
-
-class DirectionClickInput {
-  constructor(targetElement, getOrigin, onDirection, hooks = {}) {
-    this.targetElement = targetElement;
-    this.getOrigin = getOrigin;
-    this.onDirection = onDirection;
-    this.hooks = hooks;
-
-    this.handlePointerDown = this.handlePointerDown.bind(this);
-    this.targetElement.addEventListener('pointerdown', this.handlePointerDown);
-  }
-
-  handlePointerDown(event) {
-    if (event.button !== undefined && event.button !== 0) {
-      return;
-    }
-
-    const click = this.toRendererPoint(event.clientX, event.clientY);
-    const origin = this.getOrigin();
-    const dx = click.x - origin.x;
-    const dy = click.y - origin.y;
-
-    this.hooks.onClick?.({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      x: click.x,
-      y: click.y,
-      originX: origin.x,
-      originY: origin.y,
-      dx,
-      dy,
-    });
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    if (Math.max(absX, absY) < CLICK_MIN_DISTANCE) {
-      this.hooks.onDecision?.({ accepted: false, reason: 'too_close', dx, dy });
-      return;
-    }
-
-    const directionName = absX > absY ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
-    this.onDirection(DIRECTIONS[directionName]);
-    this.hooks.onDecision?.({ accepted: true, directionName, dx, dy });
-  }
-
-  toRendererPoint(clientX, clientY) {
-    const rect = this.targetElement.getBoundingClientRect();
-    const rendererWidth = this.targetElement.width || rect.width;
-    const rendererHeight = this.targetElement.height || rect.height;
-    const scaleX = rendererWidth / rect.width;
-    const scaleY = rendererHeight / rect.height;
-
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
-    };
-  }
-}
-
-
+// ----- game.js -----
 let debugUi = null;
 let keyHudEl = null;
 let clearEl = null;
@@ -600,9 +626,10 @@ const bootstrap = async () => {
   setupGlobalErrorCapture();
 
   const app = await createPixiApp(root);
+  const textures = await loadTextures();
   root.appendChild(app.canvas ?? app.view);
 
-  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL);
+  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL, textures);
   const player = new Player(board, PLAYER_START);
   const state = {
     keyCollected: 0,
@@ -727,6 +754,64 @@ const createPixiApp = async (root) => {
   return app;
 };
 
+const loadTextures = async () => {
+  const PIXI = getPixi();
+  if (!PIXI) {
+    throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
+  }
+
+  const aliases = Object.keys(ASSET_PATHS);
+  try {
+    for (const alias of aliases) {
+      if (!PIXI.Assets.get(alias)) {
+        PIXI.Assets.add({ alias, src: ASSET_PATHS[alias] });
+      }
+    }
+    await PIXI.Assets.load(aliases);
+  } catch {
+    await Promise.all(
+      aliases.map(async (alias) => {
+        const texture = await loadTextureWithFallback(PIXI, ASSET_PATHS[alias]);
+        if (!PIXI.Assets.get(alias)) {
+          PIXI.Assets.add({ alias, src: ASSET_PATHS[alias] });
+        }
+        PIXI.Assets.cache.set(alias, texture);
+      })
+    );
+  }
+
+  return {
+    tile: PIXI.Assets.get('tile'),
+  };
+};
+
+const loadTextureWithFallback = (PIXI, src) =>
+  new Promise((resolve, reject) => {
+    const texture = PIXI.Texture.from(src);
+    const base = texture.baseTexture;
+
+    if (base.valid) {
+      resolve(texture);
+      return;
+    }
+
+    const onLoaded = () => {
+      cleanup();
+      resolve(texture);
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`텍스처 로딩 실패: ${src}`));
+    };
+    const cleanup = () => {
+      base.off('loaded', onLoaded);
+      base.off('error', onError);
+    };
+
+    base.on('loaded', onLoaded);
+    base.on('error', onError);
+  });
+
 const createHud = (root) => {
   keyHudEl = document.createElement('div');
   keyHudEl.style.position = 'fixed';
@@ -836,7 +921,16 @@ bootstrap().catch((error) => {
     root.innerHTML = '<pre style="padding:16px;color:#b00020;">초기화 실패: 콘솔 오류를 확인하세요.</pre>';
   }
 });
-
+          } catch (err) {
+            console.error(err);
+            if (app) {
+              app.innerHTML =
+                '<pre style="padding:16px;color:#b00020;white-space:pre-wrap;">초기화 실패:\n' +
+                (err?.stack || err?.message || String(err)) +
+                '</pre>';
+            }
+          }
+        })();
       })();
     </script>
   </body>

@@ -14,6 +14,16 @@ export const COLORS = {
   portalActive: 0x27ae60,
 };
 
+export const ASSET_PATHS = {
+  bg: './image/BG_3.png',
+  tile: './image/tile.png',
+  wall: './image/block.png',
+  character: './image/character.png',
+  key: './image/key.png',
+  portalOff: './image/portal_off.png',
+  portalOn: './image/portal_on.png',
+};
+
 export const STAGE_LAYOUT_W1_S1 = [
   '#########',
   '#..P....#',

@@ -1,15 +1,16 @@
-import { COLORS, SLIDE_DURATION_MS, TILE_SIZE } from './config.js';
+import { SLIDE_DURATION_MS, TILE_SIZE } from './config.js';
 import { getPixi } from './pixi.js';
 
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
 
 export class Player {
-  constructor(board, startCell) {
+  constructor(board, startCell, textures) {
     this.board = board;
     this.PIXI = getPixi();
     if (!this.PIXI) {
       throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
     }
+    this.textures = textures;
 
     this.gridX = startCell.x;
     this.gridY = startCell.y;
@@ -19,10 +20,10 @@ export class Player {
     this.toPx = { x: 0, y: 0 };
     this.elapsedMs = 0;
 
-    this.sprite = new this.PIXI.Graphics();
-    this.sprite.beginFill(COLORS.player);
-    this.sprite.drawCircle(0, 0, TILE_SIZE * 0.34);
-    this.sprite.endFill();
+    this.sprite = new this.PIXI.Sprite(this.textures.character);
+    this.sprite.anchor.set(0.5);
+    this.sprite.width = TILE_SIZE;
+    this.sprite.height = TILE_SIZE;
     this.board.container.addChild(this.sprite);
 
     this.syncSpriteToGrid();

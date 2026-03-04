@@ -1,9 +1,9 @@
 import { Board } from './board.js';
-import { COLORS, KEY_CELLS, MAP_WALLS, PLAYER_START, PORTAL_CELL } from './config.js';
+import { ASSET_PATHS, COLORS, KEY_CELLS, MAP_WALLS, PLAYER_START, PORTAL_CELL } from './config.js';
 import { DebugUI } from './debug-ui.js';
 import { DirectionClickInput } from './input.js';
 import { Player } from './player.js';
-import { waitForPixi } from './pixi.js';
+import { getPixi, waitForPixi } from './pixi.js';
 
 let debugUi = null;
 let keyHudEl = null;
@@ -20,10 +20,13 @@ const bootstrap = async () => {
   setupGlobalErrorCapture();
 
   const app = await createPixiApp(root);
+  const textures = await loadTextures();
+  const background = createBackgroundSprite(textures.bg);
+  app.stage.addChild(background);
   root.appendChild(app.canvas ?? app.view);
 
-  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL);
-  const player = new Player(board, PLAYER_START);
+  const board = new Board(app.stage, MAP_WALLS, KEY_CELLS, PORTAL_CELL, textures);
+  const player = new Player(board, PLAYER_START, textures);
   const state = {
     keyCollected: 0,
     keyGoal: KEY_CELLS.length,
@@ -38,6 +41,7 @@ const bootstrap = async () => {
   debugUi.setState({ grid: `(${initial.x}, ${initial.y})`, animating: player.isAnimating() });
 
   const layout = () => {
+    layoutBackground(background, app);
     board.layout(app.renderer.width, app.renderer.height);
   };
   layout();
@@ -146,6 +150,90 @@ const createPixiApp = async (root) => {
 
   return app;
 };
+
+const loadTextures = async () => {
+  const PIXI = getPixi();
+  if (!PIXI) {
+    throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
+  }
+
+  const aliases = Object.keys(ASSET_PATHS);
+  try {
+    for (const alias of aliases) {
+      if (!PIXI.Assets.get(alias)) {
+        PIXI.Assets.add({ alias, src: ASSET_PATHS[alias] });
+      }
+    }
+    await PIXI.Assets.load(aliases);
+  } catch {
+    await Promise.all(
+      aliases.map(async (alias) => {
+        const texture = await loadTextureWithFallback(PIXI, ASSET_PATHS[alias]);
+        if (!PIXI.Assets.get(alias)) {
+          PIXI.Assets.add({ alias, src: ASSET_PATHS[alias] });
+        }
+        PIXI.Assets.cache.set(alias, texture);
+      })
+    );
+  }
+
+  return {
+    bg: PIXI.Assets.get('bg'),
+    tile: PIXI.Assets.get('tile'),
+    wall: PIXI.Assets.get('wall'),
+    character: PIXI.Assets.get('character'),
+    key: PIXI.Assets.get('key'),
+    portalOff: PIXI.Assets.get('portalOff'),
+    portalOn: PIXI.Assets.get('portalOn'),
+  };
+};
+
+const createBackgroundSprite = (texture) => {
+  const PIXI = getPixi();
+  if (!PIXI) {
+    throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
+  }
+  const sprite = new PIXI.Sprite(texture);
+  sprite.x = 0;
+  sprite.y = 0;
+  return sprite;
+};
+
+const layoutBackground = (sprite, app) => {
+  const width = app.renderer.width;
+  const height = app.renderer.height;
+  const scale = Math.max(width / sprite.texture.width, height / sprite.texture.height);
+  sprite.scale.set(scale);
+  sprite.x = (width - sprite.texture.width * scale) * 0.5;
+  sprite.y = (height - sprite.texture.height * scale) * 0.5;
+};
+
+const loadTextureWithFallback = (PIXI, src) =>
+  new Promise((resolve, reject) => {
+    const texture = PIXI.Texture.from(src);
+    const base = texture.baseTexture;
+
+    if (base.valid) {
+      resolve(texture);
+      return;
+    }
+
+    const onLoaded = () => {
+      cleanup();
+      resolve(texture);
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`텍스처 로딩 실패: ${src}`));
+    };
+    const cleanup = () => {
+      base.off('loaded', onLoaded);
+      base.off('error', onError);
+    };
+
+    base.on('loaded', onLoaded);
+    base.on('error', onError);
+  });
 
 const createHud = (root) => {
   keyHudEl = document.createElement('div');
