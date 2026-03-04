@@ -11,16 +11,16 @@ const STAGE_META = Array.from({ length: STAGE_COUNT }, (_, i) => ({
 }));
 
 const STAGE_POS = {
-  1: { x: 410, y: 1728 },
-  2: { x: 713, y: 1613 },
-  3: { x: 529, y: 1498 },
-  4: { x: 302, y: 1382 },
-  5: { x: 508, y: 1267 },
-  6: { x: 713, y: 1190 },
-  7: { x: 562, y: 1056 },
-  8: { x: 389, y: 941 },
-  9: { x: 562, y: 826 },
-  10: { x: 616, y: 653 },
+  1: { x: 429, y: 1568 },
+  2: { x: 757, y: 1470 },
+  3: { x: 525, y: 1364 },
+  4: { x: 264, y: 1258 },
+  5: { x: 514, y: 1166 },
+  6: { x: 772, y: 1068 },
+  7: { x: 586, y: 955 },
+  8: { x: 429, y: 822 },
+  9: { x: 669, y: 772 },
+  10: { x: 644, y: 613 },
 };
 
 const UI_POS = {
@@ -32,7 +32,15 @@ const UI_POS = {
 };
 
 const STAGE_BUTTON_W = 184;
+const STAGE_BUTTON_W_SMALL = 168;
 const STAGE_NUMBER_W = 62;
+const STAGE_NUMBER_Y_OFFSET = -18;
+const TOP_BACK_ICON_W = 66;
+const TOP_HOME_ICON_W = 80;
+const PAGE_BUTTON_W = 108;
+const SELECT_CHARACTER_H = 220;
+const SELECT_CHARACTER_X_OFFSET = -10;
+const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
 
 export const createLobbyScene = ({ app, textures, onSelectStage }) => {
   const PIXI = getPixi();
@@ -72,7 +80,7 @@ export const createLobbyScene = ({ app, textures, onSelectStage }) => {
 
   const topBack = new PIXI.Sprite(textures.back);
   topBack.anchor.set(0.5, 0.5);
-  fitByWidth(topBack, 96);
+  fitByWidth(topBack, TOP_BACK_ICON_W);
   topBack.position.set(UI_POS.back.x, UI_POS.back.y);
   topBack.eventMode = 'static';
   topBack.cursor = 'pointer';
@@ -80,7 +88,7 @@ export const createLobbyScene = ({ app, textures, onSelectStage }) => {
 
   const topHome = new PIXI.Sprite(textures.home);
   topHome.anchor.set(0.5, 0.5);
-  fitByWidth(topHome, 96);
+  fitByWidth(topHome, TOP_HOME_ICON_W);
   topHome.position.set(UI_POS.home.x, UI_POS.home.y);
   topHome.eventMode = 'static';
   topHome.cursor = 'pointer';
@@ -88,30 +96,40 @@ export const createLobbyScene = ({ app, textures, onSelectStage }) => {
 
   const pageButton = new PIXI.Sprite(textures.pageButton);
   pageButton.anchor.set(0.5, 0.5);
-  fitByWidth(pageButton, 120);
+  fitByWidth(pageButton, PAGE_BUTTON_W);
   pageButton.position.set(UI_POS.page.x, UI_POS.page.y);
   pageButton.eventMode = 'static';
   pageButton.cursor = 'pointer';
   frame.addChild(pageButton);
 
   const stageNodes = STAGE_META.map((meta) => createStageNode(PIXI, textures, meta, onSelectStage));
+  let playableStageRef = null;
   for (const node of stageNodes) {
     const p = STAGE_POS[node.id];
 
-    fitByWidth(node.button, STAGE_BUTTON_W);
+    const targetButtonWidth = node.status === 'clear' ? STAGE_BUTTON_W : STAGE_BUTTON_W_SMALL;
+    fitByWidth(node.button, targetButtonWidth);
     node.button.position.set(p.x, p.y);
     frame.addChild(node.button);
+    if (node.playable) {
+      playableStageRef = { x: p.x, y: p.y, buttonHeight: node.button.height };
+    }
 
     if (node.numberSprite) {
       fitByWidth(node.numberSprite, STAGE_NUMBER_W);
-      node.numberSprite.position.set(p.x, p.y + 6);
+      node.numberSprite.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
       frame.addChild(node.numberSprite);
     }
 
     if (node.numberText) {
-      node.numberText.position.set(p.x, p.y + 6);
+      node.numberText.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
       frame.addChild(node.numberText);
     }
+  }
+
+  if (playableStageRef) {
+    const characterBadge = createPlayableCharacterBadge(PIXI, textures, playableStageRef);
+    frame.addChild(characterBadge);
   }
 
   const onResize = () => {
@@ -157,7 +175,7 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
     numberText.anchor.set(0.5, 0.5);
   }
 
-  return { id: meta.id, button, numberSprite, numberText };
+  return { id: meta.id, status: meta.status, playable: meta.playable, button, numberSprite, numberText };
 };
 
 const pickStageTexture = (textures, status) => {
@@ -177,6 +195,23 @@ const fitByWidth = (sprite, targetWidth) => {
   const ratio = sprite.texture.height / sprite.texture.width;
   sprite.width = targetWidth;
   sprite.height = targetWidth * ratio;
+};
+
+const fitByHeight = (sprite, targetHeight) => {
+  const ratio = sprite.texture.width / sprite.texture.height;
+  sprite.height = targetHeight;
+  sprite.width = targetHeight * ratio;
+};
+
+const createPlayableCharacterBadge = (PIXI, textures, stageRef) => {
+  const knight = new PIXI.Sprite(textures.lobbyCharacter);
+  knight.anchor.set(0.5, 1);
+  fitByHeight(knight, SELECT_CHARACTER_H);
+  knight.position.set(
+    stageRef.x + SELECT_CHARACTER_X_OFFSET,
+    stageRef.y + SELECT_CHARACTER_STAND_OFFSET_Y
+  );
+  return knight;
 };
 
 const layoutVirtualFrame = (frame, screenW, screenH) => {
