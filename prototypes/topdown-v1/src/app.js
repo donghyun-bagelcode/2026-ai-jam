@@ -2,6 +2,7 @@ import { ASSET_PATHS } from './config.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
 import { getTotalStars, getUnlockedStageId, loadProgress, saveStageResult } from './save-data.js';
+import { createSplashScene } from './splash.js';
 import { createWorldScene } from './world.js';
 import { getPixi, waitForPixi } from './pixi.js';
 import { SceneManager } from './scene-manager.js';
@@ -41,6 +42,17 @@ const WORLD_ASSET_PATHS = {
   world5dim: './image/world/5_dim.png',
 };
 
+const SPLASH_ASSET_PATHS = {
+  splashBg: './image/splash/Splash_BG.png',
+  splashTitle: './image/splash/Splash_title.png',
+  splashLight1: './image/splash/light_1_title.png',
+  splashLight2: './image/splash/light_2_sword.png',
+  splashBar: './image/splash/loading bar.png',
+  splashGage: './image/splash/loading bar gauge.png',
+  splashLoadingText: './image/splash/loading.png',
+  splashDot: './image/splash/loading_dot.png',
+};
+
 const POPUP_ASSET_PATHS = {
   popupBg: './image/popup/bg.png',
   popupComplete: './image/popup/complete.png',
@@ -75,10 +87,17 @@ const bootstrap = async () => {
     ...ASSET_PATHS,
     ...LOBBY_ASSET_PATHS,
     ...WORLD_ASSET_PATHS,
+    ...SPLASH_ASSET_PATHS,
     ...POPUP_ASSET_PATHS,
   });
 
   const sceneManager = new SceneManager(app.stage);
+
+  const splashScene = createSplashScene({
+    app,
+    textures,
+    onComplete: () => sceneManager.switchScene('world'),
+  });
 
   const worldScene = createWorldScene({
     app,
@@ -110,13 +129,14 @@ const bootstrap = async () => {
     },
   });
 
+  sceneManager.register('splash', splashScene);
   sceneManager.register('world', worldScene);
   sceneManager.register('lobby', lobbyScene);
   sceneManager.register('game', gameScene);
 
   window.addEventListener('resize', () => sceneManager.resize());
 
-  sceneManager.switchScene('world');
+  sceneManager.switchScene('splash');
 };
 
 const createPixiApp = async (root) => {
