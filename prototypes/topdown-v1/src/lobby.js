@@ -42,7 +42,7 @@ const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
 
-export const createLobbyScene = ({ app, textures, onSelectStage }) => {
+export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) => {
   const PIXI = getPixi();
   if (!PIXI) {
     throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
@@ -83,7 +83,9 @@ export const createLobbyScene = ({ app, textures, onSelectStage }) => {
   fitByWidth(topBack, TOP_BACK_ICON_W);
   topBack.position.set(UI_POS.back.x, UI_POS.back.y);
   topBack.eventMode = 'static';
+  topBack.hitArea = new PIXI.Rectangle(-56, -56, 112, 112);
   topBack.cursor = 'pointer';
+  topBack.on('pointertap', () => onGoWorld?.());
   frame.addChild(topBack);
 
   const topHome = new PIXI.Sprite(textures.home);

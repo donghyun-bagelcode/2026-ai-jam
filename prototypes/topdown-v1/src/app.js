@@ -1,6 +1,7 @@
 import { ASSET_PATHS } from './config.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
+import { createWorldScene } from './world.js';
 import { getPixi, waitForPixi } from './pixi.js';
 import { SceneManager } from './scene-manager.js';
 
@@ -26,6 +27,16 @@ const LOBBY_ASSET_PATHS = {
   lobbyCharacter: './image/lobby/character.png',
 };
 
+const WORLD_ASSET_PATHS = {
+  worldBg: './image/world/World-select_BG.png',
+  worldTitle: './image/world/World select.png',
+  world1: './image/world/1.png',
+  world2dim: './image/world/2_dim.png',
+  world3dim: './image/world/3_dim.png',
+  world4dim: './image/world/4_dim.png',
+  world5dim: './image/world/5_dim.png',
+};
+
 const bootstrap = async () => {
   const root = document.getElementById('app');
   if (!root) {
@@ -35,9 +46,15 @@ const bootstrap = async () => {
   const app = await createPixiApp(root);
   root.appendChild(app.canvas ?? app.view);
 
-  const textures = await loadTextures({ ...ASSET_PATHS, ...LOBBY_ASSET_PATHS });
+  const textures = await loadTextures({ ...ASSET_PATHS, ...LOBBY_ASSET_PATHS, ...WORLD_ASSET_PATHS });
 
   const sceneManager = new SceneManager(app.stage);
+
+  const worldScene = createWorldScene({
+    app,
+    textures,
+    onSelectWorld: () => sceneManager.switchScene('lobby'),
+  });
 
   const gameScene = createGameScene({
     app,
@@ -49,17 +66,19 @@ const bootstrap = async () => {
   const lobbyScene = createLobbyScene({
     app,
     textures,
+    onGoWorld: () => sceneManager.switchScene('world'),
     onSelectStage: (stageId) => {
       sceneManager.switchScene('game', { stageId });
     },
   });
 
+  sceneManager.register('world', worldScene);
   sceneManager.register('lobby', lobbyScene);
   sceneManager.register('game', gameScene);
 
   window.addEventListener('resize', () => sceneManager.resize());
 
-  sceneManager.switchScene('lobby');
+  sceneManager.switchScene('world');
 };
 
 const createPixiApp = async (root) => {
