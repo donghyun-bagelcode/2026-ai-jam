@@ -49,8 +49,44 @@ const PAGE_BUTTON_W = 108;
 const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
+const CHARACTER_POPUP_UI = {
+  bgW: 900,
+  centerX: 540,
+  centerY: 960,
+  titleW: 420,
+  closeW: 52,
+  okW: 220,
+  slotW: 170,
+  slotGapX: 28,
+  slotGapY: 32,
+  gridTopY: -130,
+  starsW: 20,
+  starsGap: 22,
+  portraitScale: 0.82,
+};
+const CHARACTER_GRID_SLOT_TOTAL = 9;
+const CHARACTER_LIST = [
+  { id: 'knight', textureKey: 'charPopKnight' },
+  { id: 'thief', textureKey: 'charPopThief' },
+  { id: 'archer', textureKey: 'charPopArcher' },
+  { id: 'magician', textureKey: 'charPopMagician' },
+];
+const CHARACTER_TEXTURE_BY_ID = {
+  knight: 'charPopKnight',
+  thief: 'charPopThief',
+  archer: 'charPopArcher',
+  magician: 'charPopMagician',
+};
 
-export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getProgress }) => {
+export const createLobbyScene = ({
+  app,
+  textures,
+  onSelectStage,
+  onGoWorld,
+  getProgress,
+  onCharacterSelect,
+  getSelectedCharacter,
+}) => {
   const PIXI = getPixi();
   if (!PIXI) {
     throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
@@ -133,13 +169,139 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getP
   }
 
   const characterBadge = createPlayableCharacterBadge(PIXI, textures);
+  characterBadge.eventMode = 'static';
+  characterBadge.cursor = 'pointer';
   frame.addChild(characterBadge);
+
+  let selectedCharacterId = normalizeCharacterId(getSelectedCharacter?.());
+  let pendingCharacterId = selectedCharacterId;
+
+  const charPopupContainer = new PIXI.Container();
+  charPopupContainer.visible = false;
+  charPopupContainer.eventMode = 'static';
+  charPopupContainer.hitArea = new PIXI.Rectangle(0, 0, DESIGN_W, DESIGN_H);
+  frame.addChild(charPopupContainer);
+
+  const popupBlocker = new PIXI.Sprite(PIXI.Texture.WHITE);
+  popupBlocker.position.set(0, 0);
+  popupBlocker.width = DESIGN_W;
+  popupBlocker.height = DESIGN_H;
+  popupBlocker.alpha = 0.001;
+  popupBlocker.eventMode = 'static';
+  popupBlocker.cursor = 'default';
+  popupBlocker.on('pointertap', () => {});
+  charPopupContainer.addChild(popupBlocker);
+
+  const charPopupRoot = new PIXI.Container();
+  charPopupRoot.position.set(CHARACTER_POPUP_UI.centerX, CHARACTER_POPUP_UI.centerY);
+  charPopupContainer.addChild(charPopupRoot);
+
+  const charPopupBg = new PIXI.Sprite(textures.charPopBg);
+  charPopupBg.anchor.set(0.5, 0.5);
+  fitByWidth(charPopupBg, CHARACTER_POPUP_UI.bgW);
+  charPopupRoot.addChild(charPopupBg);
+
+  const charPopupTitle = new PIXI.Sprite(textures.charPopTitle);
+  charPopupTitle.anchor.set(0.5, 0.5);
+  fitByWidth(charPopupTitle, CHARACTER_POPUP_UI.titleW);
+  charPopupTitle.position.set(0, -charPopupBg.height * 0.37);
+  charPopupRoot.addChild(charPopupTitle);
+
+  const charPopupClose = new PIXI.Sprite(textures.charPopClose);
+  charPopupClose.anchor.set(0.5, 0.5);
+  fitByWidth(charPopupClose, CHARACTER_POPUP_UI.closeW);
+  charPopupClose.position.set(charPopupBg.width * 0.42, -charPopupBg.height * 0.41);
+  charPopupClose.eventMode = 'static';
+  charPopupClose.cursor = 'pointer';
+  charPopupRoot.addChild(charPopupClose);
+
+  const slotGridContainer = new PIXI.Container();
+  charPopupRoot.addChild(slotGridContainer);
+
+  const slotTotalW = CHARACTER_POPUP_UI.slotW * 3 + CHARACTER_POPUP_UI.slotGapX * 2;
+  const slotNodes = [];
+  for (let index = 0; index < CHARACTER_GRID_SLOT_TOTAL; index += 1) {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    const x = -slotTotalW * 0.5 + col * (CHARACTER_POPUP_UI.slotW + CHARACTER_POPUP_UI.slotGapX) + CHARACTER_POPUP_UI.slotW * 0.5;
+    const y = CHARACTER_POPUP_UI.gridTopY + row * (CHARACTER_POPUP_UI.slotW + CHARACTER_POPUP_UI.slotGapY);
+    const character = CHARACTER_LIST[index] ?? null;
+    const slot = createCharacterSlot(PIXI, textures, character);
+    slot.container.position.set(x, y);
+    slotGridContainer.addChild(slot.container);
+    slotNodes.push(slot);
+  }
+
+  const charPopupOk = new PIXI.Sprite(textures.charPopOk);
+  charPopupOk.anchor.set(0.5, 0.5);
+  fitByWidth(charPopupOk, CHARACTER_POPUP_UI.okW);
+  charPopupOk.position.set(0, charPopupBg.height * 0.38);
+  charPopupOk.eventMode = 'static';
+  charPopupOk.cursor = 'pointer';
+  charPopupRoot.addChild(charPopupOk);
+
+  const refreshCharacterPopupSelection = () => {
+    for (const slot of slotNodes) {
+      if (!slot.characterId) {
+        continue;
+      }
+      slot.frame.texture = slot.characterId === pendingCharacterId ? textures.charPopSlotRed : textures.charPopSlotYellow;
+    }
+  };
+
+  const applyCharacterBadge = () => {
+    const textureKey = CHARACTER_TEXTURE_BY_ID[selectedCharacterId];
+    const texture = textures[textureKey] ?? textures.lobbyCharacter;
+    characterBadge.texture = texture;
+    fitByHeight(characterBadge, SELECT_CHARACTER_H);
+  };
+
+  const openCharacterPopup = () => {
+    pendingCharacterId = selectedCharacterId;
+    refreshCharacterPopupSelection();
+    charPopupContainer.visible = true;
+  };
+
+  const closeCharacterPopup = () => {
+    charPopupContainer.visible = false;
+  };
+
+  characterBadge.on('pointertap', () => {
+    openCharacterPopup();
+  });
+
+  charPopupClose.on('pointertap', () => {
+    pendingCharacterId = selectedCharacterId;
+    closeCharacterPopup();
+  });
+
+  charPopupOk.on('pointertap', () => {
+    selectedCharacterId = pendingCharacterId;
+    onCharacterSelect?.(selectedCharacterId);
+    applyCharacterBadge();
+    closeCharacterPopup();
+  });
+
+  for (const slot of slotNodes) {
+    if (!slot.characterId) {
+      continue;
+    }
+    slot.container.eventMode = 'static';
+    slot.container.cursor = 'pointer';
+    slot.container.on('pointertap', () => {
+      pendingCharacterId = slot.characterId;
+      refreshCharacterPopupSelection();
+    });
+  }
 
   const applyProgress = () => {
     const data = getProgress?.() ?? {};
     const progress = normalizeProgress(data.progress);
     const unlockedStageId = clampStageId(data.unlockedStageId ?? deriveUnlockedStageId(progress));
     const totalStars = clampStarsTotal(data.totalStars ?? deriveTotalStars(progress));
+    selectedCharacterId = normalizeCharacterId(getSelectedCharacter?.() ?? selectedCharacterId);
+    pendingCharacterId = selectedCharacterId;
+    applyCharacterBadge();
     renderStarCounter(PIXI, starCounterContainer, textures, totalStars, STAGE_COUNT * 3);
 
     let currentNode = null;
@@ -183,7 +345,9 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getP
       applyProgress();
       onResize();
     },
-    onExit: () => {},
+    onExit: () => {
+      closeCharacterPopup();
+    },
     onResize,
   };
 };
@@ -287,6 +451,35 @@ const pickStageTexture = (textures, status) => {
   return textures.stageBlue;
 };
 
+const createCharacterSlot = (PIXI, textures, character) => {
+  const container = new PIXI.Container();
+  const frame = new PIXI.Sprite(textures.charPopSlotYellow);
+  frame.anchor.set(0.5, 0.5);
+  fitByWidth(frame, CHARACTER_POPUP_UI.slotW);
+  container.addChild(frame);
+
+  if (!character) {
+    frame.alpha = 0.4;
+    return { container, frame, characterId: null };
+  }
+
+  const portrait = new PIXI.Sprite(textures[character.textureKey]);
+  portrait.anchor.set(0.5, 0.5);
+  fitByHeight(portrait, CHARACTER_POPUP_UI.slotW * CHARACTER_POPUP_UI.portraitScale);
+  portrait.position.set(0, -CHARACTER_POPUP_UI.slotW * 0.06);
+  container.addChild(portrait);
+
+  for (let i = 0; i < 3; i += 1) {
+    const star = new PIXI.Sprite(textures.charPopStar);
+    star.anchor.set(0.5, 0.5);
+    fitByWidth(star, CHARACTER_POPUP_UI.starsW);
+    star.position.set((i - 1) * CHARACTER_POPUP_UI.starsGap, CHARACTER_POPUP_UI.slotW * 0.33);
+    container.addChild(star);
+  }
+
+  return { container, frame, characterId: character.id };
+};
+
 const renderStarCounter = (PIXI, container, textures, value, maxValue) => {
   container.removeChildren();
 
@@ -350,6 +543,13 @@ const createPlayableCharacterBadge = (PIXI, textures) => {
   const p = STAGE_POS[1];
   knight.position.set(p.x + SELECT_CHARACTER_X_OFFSET, p.y + SELECT_CHARACTER_STAND_OFFSET_Y);
   return knight;
+};
+
+const normalizeCharacterId = (characterId) => {
+  if (typeof characterId !== 'string') {
+    return 'knight';
+  }
+  return CHARACTER_TEXTURE_BY_ID[characterId] ? characterId : 'knight';
 };
 
 const clampStageId = (stageId) => {

@@ -74,6 +74,20 @@ const POPUP_ASSET_PATHS = {
   popupNum9: './image/popup/num_9.png',
 };
 
+const CHARACTER_POPUP_ASSET_PATHS = {
+  charPopBg: './image/lobby-popup/BG_pop.png',
+  charPopTitle: './image/lobby-popup/Choose your character.png',
+  charPopClose: './image/lobby-popup/Btn-X.png',
+  charPopOk: './image/lobby-popup/btn_ok.png',
+  charPopSlotRed: './image/lobby-popup/character select_red.png',
+  charPopSlotYellow: './image/lobby-popup/character select_yellow.png',
+  charPopStar: './image/lobby-popup/character rank_star.png',
+  charPopKnight: './image/lobby-popup/knight.png',
+  charPopArcher: './image/lobby-popup/archer.png',
+  charPopMagician: './image/lobby-popup/magician.png',
+  charPopThief: './image/lobby-popup/thief.png',
+};
+
 const bootstrap = async () => {
   const root = document.getElementById('app');
   if (!root) {
@@ -89,9 +103,11 @@ const bootstrap = async () => {
     ...WORLD_ASSET_PATHS,
     ...SPLASH_ASSET_PATHS,
     ...POPUP_ASSET_PATHS,
+    ...CHARACTER_POPUP_ASSET_PATHS,
   });
 
   const sceneManager = new SceneManager(app.stage);
+  let selectedCharacterId = 'knight';
 
   const splashScene = createSplashScene({
     app,
@@ -123,6 +139,10 @@ const bootstrap = async () => {
       unlockedStageId: getUnlockedStageId(),
       totalStars: getTotalStars(),
     }),
+    onCharacterSelect: (id) => {
+      selectedCharacterId = id;
+    },
+    getSelectedCharacter: () => selectedCharacterId,
     onGoWorld: () => sceneManager.switchScene('world'),
     onSelectStage: (stageId) => {
       sceneManager.switchScene('game', { stageId });
