@@ -1,4 +1,5 @@
 import { getPixi } from './pixi.js';
+import { clearProgress } from './save-data.js';
 
 const DESIGN_W = 1080;
 const DESIGN_H = 1920;
@@ -35,6 +36,13 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
   frame.eventMode = 'static';
   frame.hitArea = new PIXI.Rectangle(0, 0, DESIGN_W, DESIGN_H);
 
+  const dragState = {
+    active: false,
+    moved: false,
+    startY: 0,
+    lastY: 0,
+  };
+
   const bg = new PIXI.Sprite(textures.worldBg);
   bg.position.set(0, 0);
   bg.width = DESIGN_W;
@@ -45,6 +53,15 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
   title.anchor.set(0.5, 0);
   fitByWidth(title, TITLE_W);
   title.position.set(DESIGN_W * 0.5, TITLE_Y);
+  title.eventMode = 'static';
+  title.cursor = 'pointer';
+  title.on('pointertap', () => {
+    if (dragState.moved) {
+      return;
+    }
+    clearProgress();
+    location.reload();
+  });
   frame.addChild(title);
 
   const list = new PIXI.Container();
@@ -70,13 +87,6 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
     list.addChild(sprite);
     return sprite;
   });
-
-  const dragState = {
-    active: false,
-    moved: false,
-    startY: 0,
-    lastY: 0,
-  };
 
   const bounds = {
     minY: 0,

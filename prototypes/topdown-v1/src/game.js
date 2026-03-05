@@ -660,7 +660,7 @@ const calculateStars = (minMoves, moveCount) => {
   if (moveCount === minMoves) {
     return 3;
   }
-  if (moveCount <= minMoves + 2) {
+  if (moveCount <= minMoves + 4) {
     return 2;
   }
   return 1;

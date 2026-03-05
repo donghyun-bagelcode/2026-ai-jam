@@ -81,3 +81,11 @@ export const getTotalStars = () => {
   }
   return total;
 };
+
+export const clearProgress = () => {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+    // 스토리지 접근 실패 시에도 흐름을 유지한다.
+  }
+};
