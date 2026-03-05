@@ -1,7 +1,7 @@
 import { Board } from './board.js';
-import { getStage, STAGE_COUNT } from './config.js';
+import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE } from './config.js';
 import { DebugUI } from './debug-ui.js';
-import { DirectionClickInput } from './input.js';
+import { SwipeInput } from './input.js';
 import { Player } from './player.js';
 import { getPixi } from './pixi.js';
 
@@ -106,9 +106,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
   updateHud();
   setUiVisible(false);
 
-  const input = new DirectionClickInput(
+  const input = new SwipeInput(
     app.canvas ?? app.view,
-    () => getPlayerRendererPosition(player, board, frame),
     (direction) => {
       if (!state.active || state.clear || !board || !player || !currentStage) {
         return;
@@ -134,27 +133,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
       );
       debugUi?.setState({ grid: `(${after.x}, ${after.y})`, animating: player.isAnimating() });
     },
-    {
-      onClick: ({ x, y, originX, originY, dx, dy }) => {
-        if (!state.active) {
-          return;
-        }
-        debugUi?.logInput(
-          `click at=(${Math.round(x)},${Math.round(y)}) origin=(${Math.round(originX)},${Math.round(
-            originY
-          )}) dx=${Math.round(dx)} dy=${Math.round(dy)}`
-        );
-      },
-      onDecision: ({ accepted, directionName, reason, dx, dy }) => {
-        if (!state.active) {
-          return;
-        }
-        const direction = directionName ?? `rejected:${reason}`;
-        debugUi?.logInput(
-          `decision dx=${Math.round(dx)} dy=${Math.round(dy)} dir=${direction} accepted=${accepted}`
-        );
-      },
-    }
+    { minDistance: SWIPE_MIN_DISTANCE }
   );
 
   resetButtonEl.addEventListener('click', () => {
@@ -236,6 +215,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
     setUiVisible(false);
     app.ticker.remove(tickerUpdate);
     input.targetElement?.removeEventListener?.('pointerdown', input.handlePointerDown);
+    input.targetElement?.removeEventListener?.('pointerup', input.handlePointerUp);
+    input.targetElement?.removeEventListener?.('pointercancel', input.handlePointerCancel);
   };
 
   const applySlideOutcome = (path) => {
