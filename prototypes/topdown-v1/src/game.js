@@ -41,7 +41,7 @@ const POPUP_UI = {
   exitW: 86,
 };
 
-export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }) => {
+export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, getCharacterSheet }) => {
   const PIXI = getPixi();
   if (!PIXI) {
     throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
@@ -64,6 +64,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
   let board = null;
   let player = null;
   let currentStage = null;
+  let currentCharacterSheet = null;
 
   const state = {
     keyCollected: 0,
@@ -186,7 +187,9 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
     const payload = ctx.payload ?? ctx;
     state.active = true;
     const nextStageId = resolveStageId(payload.stageId ?? state.stageId);
-    if (!board || nextStageId !== state.stageId) {
+    const nextCharacterSheet = getCharacterSheet?.() ?? textures.characterSheet;
+    const shouldRebuild = !board || nextStageId !== state.stageId || currentCharacterSheet !== nextCharacterSheet;
+    if (shouldRebuild) {
       buildStage(nextStageId);
     }
     resetGameplay();
@@ -266,15 +269,17 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }
   const buildStage = (stageId) => {
     const nextStageId = resolveStageId(stageId);
     const stageData = getStage(nextStageId);
+    const characterSheet = getCharacterSheet?.() ?? textures.characterSheet;
 
     if (board) {
       frame.removeChild(board.container);
     }
 
     board = new Board(frame, stageData.walls, stageData.keys, stageData.portal, textures);
-    player = new Player(board, stageData.start, textures);
+    player = new Player(board, stageData.start, textures, characterSheet);
     frame.addChild(hudOverlay);
     currentStage = stageData;
+    currentCharacterSheet = characterSheet;
     state.stageId = nextStageId;
     state.keyGoal = stageData.keys.length;
     pendingSlideOutcome = null;

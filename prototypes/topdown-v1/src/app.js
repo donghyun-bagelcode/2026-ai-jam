@@ -125,6 +125,15 @@ const bootstrap = async () => {
     app,
     root,
     textures,
+    getCharacterSheet: () => {
+      const sheetMap = {
+        knight: textures.charSheetKnight,
+        archer: textures.charSheetArcher,
+        magician: textures.charSheetMagician,
+        thief: textures.charSheetThief,
+      };
+      return sheetMap[selectedCharacterId] ?? textures.charSheetKnight;
+    },
     onGoLobby: () => sceneManager.switchScene('lobby'),
     onStageClear: (stageId, stars) => {
       saveStageResult(stageId, stars);
