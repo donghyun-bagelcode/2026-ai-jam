@@ -11,6 +11,8 @@ const LOBBY_ASSET_PATHS = {
   stageBlue: './image/lobby/stage_blue.png',
   stageRed: './image/lobby/stage_red.png',
   stageCurrent: './image/lobby/stage_1.png',
+  worldText: './image/lobby/world-text.png',
+  num0: './image/lobby/num_0.png',
   num1: './image/lobby/num_1.png',
   num2: './image/lobby/num_2.png',
   num3: './image/lobby/num_3.png',
@@ -37,6 +39,27 @@ const WORLD_ASSET_PATHS = {
   world5dim: './image/world/5_dim.png',
 };
 
+const POPUP_ASSET_PATHS = {
+  popupBg: './image/popup/bg.png',
+  popupComplete: './image/popup/complete.png',
+  popupStage: './image/popup/stage_.png',
+  popupStar: './image/popup/star.png',
+  popupStarEmpty: './image/popup/star_empty.png',
+  popupReplay: './image/popup/btn replay.png',
+  popupNext: './image/popup/btn next.png',
+  popupExit: './image/popup/btn_exit.png',
+  popupNum0: './image/popup/num_0.png',
+  popupNum1: './image/popup/num_1.png',
+  popupNum2: './image/popup/num_2.png',
+  popupNum3: './image/popup/num_3.png',
+  popupNum4: './image/popup/num_4.png',
+  popupNum5: './image/popup/num_5.png',
+  popupNum6: './image/popup/num_6.png',
+  popupNum7: './image/popup/num_7.png',
+  popupNum8: './image/popup/num_8.png',
+  popupNum9: './image/popup/num_9.png',
+};
+
 const bootstrap = async () => {
   const root = document.getElementById('app');
   if (!root) {
@@ -46,7 +69,12 @@ const bootstrap = async () => {
   const app = await createPixiApp(root);
   root.appendChild(app.canvas ?? app.view);
 
-  const textures = await loadTextures({ ...ASSET_PATHS, ...LOBBY_ASSET_PATHS, ...WORLD_ASSET_PATHS });
+  const textures = await loadTextures({
+    ...ASSET_PATHS,
+    ...LOBBY_ASSET_PATHS,
+    ...WORLD_ASSET_PATHS,
+    ...POPUP_ASSET_PATHS,
+  });
 
   const sceneManager = new SceneManager(app.stage);
 

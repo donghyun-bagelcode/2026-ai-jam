@@ -6,8 +6,8 @@ const STAGE_COUNT = 10;
 
 const STAGE_META = Array.from({ length: STAGE_COUNT }, (_, i) => ({
   id: i + 1,
-  status: i === 0 ? 'current' : 'locked',
-  playable: i === 0,
+  status: i === 0 ? 'current' : 'unlocked',
+  playable: true,
 }));
 
 const STAGE_POS = {
@@ -34,6 +34,7 @@ const UI_POS = {
 const STAGE_BUTTON_W = 184;
 const STAGE_BUTTON_W_SMALL = 168;
 const STAGE_NUMBER_W = 62;
+const STAGE_NUMBER_H = 62;
 const STAGE_NUMBER_Y_OFFSET = -18;
 const TOP_BACK_ICON_W = 66;
 const TOP_HOME_ICON_W = 80;
@@ -60,21 +61,15 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
   bg.height = DESIGN_H;
   frame.addChild(bg);
 
-  const title = new PIXI.Text('WORLD 1', {
-    fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-    fontWeight: '700',
-    fontSize: 84,
-    fill: 0xffffff,
-    stroke: 0x1f2937,
-    strokeThickness: 8,
-  });
+  const title = new PIXI.Sprite(textures.worldText);
   title.anchor.set(0.5, 0.5);
+  fitByWidth(title, 504);
   title.position.set(UI_POS.worldTitle.x, UI_POS.worldTitle.y);
   frame.addChild(title);
 
   const starBar = new PIXI.Sprite(textures.starCollect);
   starBar.anchor.set(0.5, 0.5);
-  fitByWidth(starBar, 370);
+  fitByWidth(starBar, 555);
   starBar.position.set(UI_POS.starBar.x, UI_POS.starBar.y);
   frame.addChild(starBar);
 
@@ -113,12 +108,14 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
     fitByWidth(node.button, targetButtonWidth);
     node.button.position.set(p.x, p.y);
     frame.addChild(node.button);
-    if (node.playable) {
+    if (!playableStageRef && node.playable) {
       playableStageRef = { x: p.x, y: p.y, buttonHeight: node.button.height };
     }
 
     if (node.numberSprite) {
-      fitByWidth(node.numberSprite, STAGE_NUMBER_W);
+      if (node.numberSprite.texture) {
+        fitByWidth(node.numberSprite, STAGE_NUMBER_W);
+      }
       node.numberSprite.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
       frame.addChild(node.numberSprite);
     }
@@ -165,6 +162,22 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
   if (meta.id >= 1 && meta.id <= 9) {
     numberSprite = new PIXI.Sprite(textures[`num${meta.id}`]);
     numberSprite.anchor.set(0.5, 0.5);
+  } else if (meta.id === 10 && textures.num1 && textures.num0) {
+    const one = new PIXI.Sprite(textures.num1);
+    one.anchor.set(0.5, 0.5);
+    fitByHeight(one, STAGE_NUMBER_H);
+
+    const zero = new PIXI.Sprite(textures.num0);
+    zero.anchor.set(0.5, 0.5);
+    fitByHeight(zero, STAGE_NUMBER_H);
+
+    const pair = new PIXI.Container();
+    const gap = Math.round(STAGE_NUMBER_H * 0.52);
+    one.position.set(-gap * 0.5, 0);
+    zero.position.set(gap * 0.5, 0);
+    pair.addChild(one);
+    pair.addChild(zero);
+    numberSprite = pair;
   } else {
     numberText = new PIXI.Text(String(meta.id), {
       fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
