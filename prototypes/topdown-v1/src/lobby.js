@@ -1,14 +1,10 @@
 import { getPixi } from './pixi.js';
+import { STAGE_COUNT } from './config.js';
 
 const DESIGN_W = 1080;
 const DESIGN_H = 1920;
-const STAGE_COUNT = 10;
 
-const STAGE_META = Array.from({ length: STAGE_COUNT }, (_, i) => ({
-  id: i + 1,
-  status: i === 0 ? 'current' : 'unlocked',
-  playable: true,
-}));
+const STAGE_META = Array.from({ length: STAGE_COUNT }, (_, i) => ({ id: i + 1 }));
 
 const STAGE_POS = {
   1: { x: 429, y: 1568 },
@@ -43,7 +39,7 @@ const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
 
-export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) => {
+export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getProgress }) => {
   const PIXI = getPixi();
   if (!PIXI) {
     throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
@@ -72,6 +68,17 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
   fitByWidth(starBar, 555);
   starBar.position.set(UI_POS.starBar.x, UI_POS.starBar.y);
   frame.addChild(starBar);
+  const starBarText = new PIXI.Text('0/30', {
+    fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+    fontWeight: '800',
+    fontSize: 54,
+    fill: 0xffffff,
+    stroke: 0x1f2937,
+    strokeThickness: 8,
+  });
+  starBarText.anchor.set(0.5, 0.5);
+  starBarText.position.set(UI_POS.starBar.x + 60, UI_POS.starBar.y);
+  frame.addChild(starBarText);
 
   const topBack = new PIXI.Sprite(textures.back);
   topBack.anchor.set(0.5, 0.5);
@@ -99,18 +106,13 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
   pageButton.cursor = 'pointer';
   frame.addChild(pageButton);
 
-  const stageNodes = STAGE_META.map((meta) => createStageNode(PIXI, textures, meta, onSelectStage));
-  let playableStageRef = null;
+  const stageNodes = STAGE_META.map((meta) => createStageNode(PIXI, textures, meta.id, onSelectStage));
   for (const node of stageNodes) {
     const p = STAGE_POS[node.id];
 
-    const targetButtonWidth = node.status === 'clear' ? STAGE_BUTTON_W : STAGE_BUTTON_W_SMALL;
-    fitByWidth(node.button, targetButtonWidth);
     node.button.position.set(p.x, p.y);
     frame.addChild(node.button);
-    if (!playableStageRef && node.playable) {
-      playableStageRef = { x: p.x, y: p.y, buttonHeight: node.button.height };
-    }
+    frame.addChild(node.starContainer);
 
     if (node.numberSprite) {
       if (node.numberSprite.texture) {
@@ -126,10 +128,46 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
     }
   }
 
-  if (playableStageRef) {
-    const characterBadge = createPlayableCharacterBadge(PIXI, textures, playableStageRef);
-    frame.addChild(characterBadge);
-  }
+  const characterBadge = createPlayableCharacterBadge(PIXI, textures);
+  frame.addChild(characterBadge);
+
+  const applyProgress = () => {
+    const data = getProgress?.() ?? {};
+    const progress = normalizeProgress(data.progress);
+    const unlockedStageId = clampStageId(data.unlockedStageId ?? deriveUnlockedStageId(progress));
+    const totalStars = clampStarsTotal(data.totalStars ?? deriveTotalStars(progress));
+    starBarText.text = `${totalStars}/30`;
+
+    let currentNode = null;
+    for (const node of stageNodes) {
+      const stars = clampStars(progress.stages[String(node.id)]);
+      let status = 'locked';
+      let playable = false;
+
+      if (stars > 0) {
+        status = 'clear';
+        playable = true;
+      } else if (node.id === unlockedStageId) {
+        status = 'current';
+        playable = true;
+      } else if (node.id < unlockedStageId) {
+        status = 'unlocked';
+        playable = true;
+      }
+
+      applyStageNodeState(node, textures, status, playable, stars);
+      if (status === 'current') {
+        currentNode = node;
+      }
+    }
+
+    if (!currentNode) {
+      currentNode = stageNodes.find((node) => node.id === unlockedStageId) ?? stageNodes[stageNodes.length - 1];
+    }
+
+    const p = STAGE_POS[currentNode.id];
+    characterBadge.position.set(p.x + SELECT_CHARACTER_X_OFFSET, p.y + SELECT_CHARACTER_STAND_OFFSET_Y);
+  };
 
   const onResize = () => {
     layoutVirtualFrame(frame, app.renderer.width, app.renderer.height);
@@ -137,32 +175,32 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld }) =>
 
   return {
     container,
-    onEnter: () => onResize(),
+    onEnter: () => {
+      applyProgress();
+      onResize();
+    },
     onExit: () => {},
     onResize,
   };
 };
 
-const createStageNode = (PIXI, textures, meta, onSelectStage) => {
-  const buttonTexture = pickStageTexture(textures, meta.status);
+const createStageNode = (PIXI, textures, stageId, onSelectStage) => {
+  const buttonTexture = pickStageTexture(textures, 'locked');
   const button = new PIXI.Sprite(buttonTexture);
   button.anchor.set(0.5, 0.5);
+  fitByWidth(button, STAGE_BUTTON_W_SMALL);
 
   button.eventMode = 'static';
-  button.cursor = meta.playable ? 'pointer' : 'default';
-  button.alpha = meta.playable ? 1 : 0.94;
-
-  if (meta.playable) {
-    button.on('pointertap', () => onSelectStage?.(meta.id));
-  }
+  button.cursor = 'default';
+  button.alpha = 0.94;
 
   let numberSprite = null;
   let numberText = null;
 
-  if (meta.id >= 1 && meta.id <= 9) {
-    numberSprite = new PIXI.Sprite(textures[`num${meta.id}`]);
+  if (stageId >= 1 && stageId <= 9) {
+    numberSprite = new PIXI.Sprite(textures[`num${stageId}`]);
     numberSprite.anchor.set(0.5, 0.5);
-  } else if (meta.id === 10 && textures.num1 && textures.num0) {
+  } else if (stageId === 10 && textures.num1 && textures.num0) {
     const one = new PIXI.Sprite(textures.num1);
     one.anchor.set(0.5, 0.5);
     fitByHeight(one, STAGE_NUMBER_H);
@@ -179,7 +217,7 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
     pair.addChild(zero);
     numberSprite = pair;
   } else {
-    numberText = new PIXI.Text(String(meta.id), {
+    numberText = new PIXI.Text(String(stageId), {
       fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
       fontWeight: '800',
       fontSize: 42,
@@ -190,7 +228,46 @@ const createStageNode = (PIXI, textures, meta, onSelectStage) => {
     numberText.anchor.set(0.5, 0.5);
   }
 
-  return { id: meta.id, status: meta.status, playable: meta.playable, button, numberSprite, numberText };
+  const starContainer = new PIXI.Container();
+
+  const node = { id: stageId, status: 'locked', playable: false, button, numberSprite, numberText, starContainer };
+  button.on('pointertap', () => {
+    if (node.playable) {
+      onSelectStage?.(node.id);
+    }
+  });
+  return node;
+};
+
+const applyStageNodeState = (node, textures, status, playable, stars) => {
+  node.status = status;
+  node.playable = playable;
+  node.button.texture = pickStageTexture(textures, status);
+  fitByWidth(node.button, status === 'clear' ? STAGE_BUTTON_W : STAGE_BUTTON_W_SMALL);
+  node.button.alpha = playable ? 1 : 0.94;
+  node.button.cursor = playable ? 'pointer' : 'default';
+
+  renderStageStars(node, textures, stars);
+};
+
+const renderStageStars = (node, textures, stars) => {
+  node.starContainer.removeChildren();
+  if (stars <= 0 || !textures.star) {
+    return;
+  }
+
+  const starW = 36;
+  const gap = 34;
+  const p = STAGE_POS[node.id];
+  node.starContainer.position.set(p.x, p.y - node.button.height * 0.58);
+
+  for (let i = 0; i < stars; i += 1) {
+    const star = new node.button.constructor(textures.star);
+    star.anchor.set(0.5, 0.5);
+    fitByWidth(star, starW);
+    star.position.set((i - (stars - 1) * 0.5) * gap, 0);
+    node.starContainer.addChild(star);
+  }
 };
 
 const pickStageTexture = (textures, status) => {
@@ -218,15 +295,61 @@ const fitByHeight = (sprite, targetHeight) => {
   sprite.width = targetHeight * ratio;
 };
 
-const createPlayableCharacterBadge = (PIXI, textures, stageRef) => {
+const createPlayableCharacterBadge = (PIXI, textures) => {
   const knight = new PIXI.Sprite(textures.lobbyCharacter);
   knight.anchor.set(0.5, 1);
   fitByHeight(knight, SELECT_CHARACTER_H);
-  knight.position.set(
-    stageRef.x + SELECT_CHARACTER_X_OFFSET,
-    stageRef.y + SELECT_CHARACTER_STAND_OFFSET_Y
-  );
+  const p = STAGE_POS[1];
+  knight.position.set(p.x + SELECT_CHARACTER_X_OFFSET, p.y + SELECT_CHARACTER_STAND_OFFSET_Y);
   return knight;
+};
+
+const clampStageId = (stageId) => {
+  const numeric = Number(stageId);
+  if (!Number.isFinite(numeric)) {
+    return 1;
+  }
+  return Math.max(1, Math.min(STAGE_COUNT, Math.floor(numeric)));
+};
+
+const clampStars = (stars) => {
+  const numeric = Number(stars);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(3, Math.floor(numeric)));
+};
+
+const clampStarsTotal = (totalStars) => {
+  const numeric = Number(totalStars);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(STAGE_COUNT * 3, Math.floor(numeric)));
+};
+
+const normalizeProgress = (progress) => {
+  if (!progress || typeof progress !== 'object' || !progress.stages || typeof progress.stages !== 'object') {
+    return { stages: {} };
+  }
+  return progress;
+};
+
+const deriveUnlockedStageId = (progress) => {
+  for (let id = 1; id <= STAGE_COUNT; id += 1) {
+    if (clampStars(progress.stages[String(id)]) <= 0) {
+      return id;
+    }
+  }
+  return STAGE_COUNT;
+};
+
+const deriveTotalStars = (progress) => {
+  let total = 0;
+  for (let id = 1; id <= STAGE_COUNT; id += 1) {
+    total += clampStars(progress.stages[String(id)]);
+  }
+  return total;
 };
 
 const layoutVirtualFrame = (frame, screenW, screenH) => {

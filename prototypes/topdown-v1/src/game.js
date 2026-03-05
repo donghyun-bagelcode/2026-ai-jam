@@ -41,7 +41,7 @@ const POPUP_UI = {
   exitW: 86,
 };
 
-export const createGameScene = ({ app, root, textures, onGoLobby }) => {
+export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear }) => {
   const PIXI = getPixi();
   if (!PIXI) {
     throw new Error('PixiJS 인스턴스를 찾지 못했습니다.');
@@ -254,6 +254,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
     if (state.portalActive && board.isPortalOnPath(path)) {
       state.clear = true;
       state.stars = calculateStars(currentStage.minMoves, state.moveCount);
+      onStageClear?.(state.stageId, state.stars);
       showClear(state.stars);
     }
 
@@ -374,6 +375,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby }) => {
 
   function createPopup() {
     popupContainer = new PIXI.Container();
+    popupContainer.scale.set(0.9);
     popupContainer.visible = false;
     popupContainer.eventMode = 'static';
     popupContainer.cursor = 'default';

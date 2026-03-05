@@ -1,6 +1,7 @@
 import { ASSET_PATHS } from './config.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
+import { getTotalStars, getUnlockedStageId, loadProgress, saveStageResult } from './save-data.js';
 import { createWorldScene } from './world.js';
 import { getPixi, waitForPixi } from './pixi.js';
 import { SceneManager } from './scene-manager.js';
@@ -23,6 +24,7 @@ const LOBBY_ASSET_PATHS = {
   num8: './image/lobby/num_8.png',
   num9: './image/lobby/num_9.png',
   starCollect: './image/lobby/star-collect.png',
+  star: './image/lobby/star.png',
   back: './image/lobby/back.png',
   home: './image/lobby/home.png',
   pageButton: './image/lobby/page-button.png',
@@ -89,11 +91,19 @@ const bootstrap = async () => {
     root,
     textures,
     onGoLobby: () => sceneManager.switchScene('lobby'),
+    onStageClear: (stageId, stars) => {
+      saveStageResult(stageId, stars);
+    },
   });
 
   const lobbyScene = createLobbyScene({
     app,
     textures,
+    getProgress: () => ({
+      progress: loadProgress(),
+      unlockedStageId: getUnlockedStageId(),
+      totalStars: getTotalStars(),
+    }),
     onGoWorld: () => sceneManager.switchScene('world'),
     onSelectStage: (stageId) => {
       sceneManager.switchScene('game', { stageId });
