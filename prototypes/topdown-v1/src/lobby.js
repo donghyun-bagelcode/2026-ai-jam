@@ -27,6 +27,17 @@ const UI_POS = {
   page: { x: 994, y: 1786 },
 };
 
+const STAR_COUNTER_UI = {
+  offsetX: 40,
+  offsetY: 0,
+  digitH: 48,
+  itemGap: 8,
+  slashFontSize: 40,
+  slashColor: 0xffffff,
+  slashStroke: 0x1f2937,
+  slashStrokeThickness: 6,
+};
+
 const STAGE_BUTTON_W = 184;
 const STAGE_BUTTON_W_SMALL = 168;
 const STAGE_NUMBER_W = 62;
@@ -68,17 +79,10 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getP
   fitByWidth(starBar, 555);
   starBar.position.set(UI_POS.starBar.x, UI_POS.starBar.y);
   frame.addChild(starBar);
-  const starBarText = new PIXI.Text('0/30', {
-    fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-    fontWeight: '800',
-    fontSize: 54,
-    fill: 0xffffff,
-    stroke: 0x1f2937,
-    strokeThickness: 8,
-  });
-  starBarText.anchor.set(0.5, 0.5);
-  starBarText.position.set(UI_POS.starBar.x + 60, UI_POS.starBar.y);
-  frame.addChild(starBarText);
+
+  const starCounterContainer = new PIXI.Container();
+  starCounterContainer.position.set(UI_POS.starBar.x + STAR_COUNTER_UI.offsetX, UI_POS.starBar.y + STAR_COUNTER_UI.offsetY);
+  frame.addChild(starCounterContainer);
 
   const topBack = new PIXI.Sprite(textures.back);
   topBack.anchor.set(0.5, 0.5);
@@ -136,7 +140,7 @@ export const createLobbyScene = ({ app, textures, onSelectStage, onGoWorld, getP
     const progress = normalizeProgress(data.progress);
     const unlockedStageId = clampStageId(data.unlockedStageId ?? deriveUnlockedStageId(progress));
     const totalStars = clampStarsTotal(data.totalStars ?? deriveTotalStars(progress));
-    starBarText.text = `${totalStars}/30`;
+    renderStarCounter(PIXI, starCounterContainer, textures, totalStars, STAGE_COUNT * 3);
 
     let currentNode = null;
     for (const node of stageNodes) {
@@ -280,7 +284,51 @@ const pickStageTexture = (textures, status) => {
   if (status === 'current') {
     return textures.stageCurrent;
   }
-  return textures.stageRed;
+  return textures.stageBlue;
+};
+
+const renderStarCounter = (PIXI, container, textures, value, maxValue) => {
+  container.removeChildren();
+
+  const text = `${value}/${maxValue}`;
+  const items = [];
+  let totalWidth = 0;
+
+  for (const ch of text) {
+    if (ch >= '0' && ch <= '9') {
+      const tex = textures[`hudNum${ch}`] ?? textures[`num${ch}`];
+      const digit = new PIXI.Sprite(tex);
+      digit.anchor.set(0.5, 0.5);
+      fitByHeight(digit, STAR_COUNTER_UI.digitH);
+      items.push(digit);
+      totalWidth += digit.width;
+      continue;
+    }
+
+    const slash = new PIXI.Text(ch, {
+      fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+      fontWeight: '800',
+      fontSize: STAR_COUNTER_UI.slashFontSize,
+      fill: STAR_COUNTER_UI.slashColor,
+      stroke: STAR_COUNTER_UI.slashStroke,
+      strokeThickness: STAR_COUNTER_UI.slashStrokeThickness,
+    });
+    slash.anchor.set(0.5, 0.5);
+    items.push(slash);
+    totalWidth += slash.width;
+  }
+
+  if (items.length > 1) {
+    totalWidth += STAR_COUNTER_UI.itemGap * (items.length - 1);
+  }
+
+  let x = -totalWidth * 0.5;
+  for (const item of items) {
+    x += item.width * 0.5;
+    item.position.set(x, 0);
+    container.addChild(item);
+    x += item.width * 0.5 + STAR_COUNTER_UI.itemGap;
+  }
 };
 
 const fitByWidth = (sprite, targetWidth) => {
