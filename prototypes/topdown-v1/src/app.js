@@ -32,6 +32,11 @@ const LOBBY_ASSET_PATHS = {
   lobbyCharacter: './image/lobby/character.png',
 };
 
+const LOBBY_HARD_ASSET_PATHS = {
+  lobbyHardBg: './image/lobby-hard/BG_hardmode.png',
+  lobbyHardTitle: './image/lobby-hard/txt_world 1 hard.png',
+};
+
 const WORLD_ASSET_PATHS = {
   worldBg: './image/world/World-select_BG.png',
   worldTitle: './image/world/World select.png',
@@ -100,6 +105,7 @@ const bootstrap = async () => {
   const textures = await loadTextures({
     ...ASSET_PATHS,
     ...LOBBY_ASSET_PATHS,
+    ...LOBBY_HARD_ASSET_PATHS,
     ...WORLD_ASSET_PATHS,
     ...SPLASH_ASSET_PATHS,
     ...POPUP_ASSET_PATHS,
@@ -135,26 +141,30 @@ const bootstrap = async () => {
       return sheetMap[selectedCharacterId] ?? textures.charSheetKnight;
     },
     onGoLobby: () => sceneManager.switchScene('lobby'),
-    onStageClear: (stageId, stars) => {
-      saveStageResult(stageId, stars);
+    onStageClear: (stageId, stars, mode) => {
+      saveStageResult(stageId, stars, mode ?? 'basic');
     },
   });
 
   const lobbyScene = createLobbyScene({
     app,
     textures,
-    getProgress: () => ({
-      progress: loadProgress(),
-      unlockedStageId: getUnlockedStageId(),
-      totalStars: getTotalStars(),
-    }),
+    getProgress: (mode) => {
+      const targetMode = mode ?? 'basic';
+      const progressByMode = loadProgress();
+      return {
+        progress: { stages: progressByMode[targetMode] ?? {} },
+        unlockedStageId: getUnlockedStageId(targetMode),
+        totalStars: getTotalStars(targetMode),
+      };
+    },
     onCharacterSelect: (id) => {
       selectedCharacterId = id;
     },
     getSelectedCharacter: () => selectedCharacterId,
     onGoWorld: () => sceneManager.switchScene('world'),
-    onSelectStage: (stageId) => {
-      sceneManager.switchScene('game', { stageId });
+    onSelectStage: (stageId, mode) => {
+      sceneManager.switchScene('game', { stageId, mode: mode ?? 'basic' });
     },
   });
 

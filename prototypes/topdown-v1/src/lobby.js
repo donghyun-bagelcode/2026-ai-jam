@@ -94,6 +94,7 @@ export const createLobbyScene = ({
 
   const container = new PIXI.Container();
   container.visible = false;
+  let currentMode = 'basic';
 
   const frame = new PIXI.Container();
   container.addChild(frame);
@@ -108,6 +109,8 @@ export const createLobbyScene = ({
   title.anchor.set(0.5, 0.5);
   fitByWidth(title, 504);
   title.position.set(UI_POS.worldTitle.x, UI_POS.worldTitle.y);
+  title.eventMode = 'static';
+  title.cursor = 'pointer';
   frame.addChild(title);
 
   const starBar = new PIXI.Sprite(textures.starCollect);
@@ -146,7 +149,9 @@ export const createLobbyScene = ({
   pageButton.cursor = 'pointer';
   frame.addChild(pageButton);
 
-  const stageNodes = STAGE_META.map((meta) => createStageNode(PIXI, textures, meta.id, onSelectStage));
+  const stageNodes = STAGE_META.map((meta) =>
+    createStageNode(PIXI, textures, meta.id, (stageId) => onSelectStage?.(stageId, currentMode))
+  );
   for (const node of stageNodes) {
     const p = STAGE_POS[node.id];
 
@@ -295,7 +300,7 @@ export const createLobbyScene = ({
   }
 
   const applyProgress = () => {
-    const data = getProgress?.() ?? {};
+    const data = getProgress?.(currentMode) ?? {};
     const progress = normalizeProgress(data.progress);
     const unlockedStageId = clampStageId(data.unlockedStageId ?? deriveUnlockedStageId(progress));
     const totalStars = clampStarsTotal(data.totalStars ?? deriveTotalStars(progress));
@@ -335,6 +340,18 @@ export const createLobbyScene = ({
     characterBadge.position.set(p.x + SELECT_CHARACTER_X_OFFSET, p.y + SELECT_CHARACTER_STAND_OFFSET_Y);
   };
 
+  const applyMode = () => {
+    bg.texture = currentMode === 'hard' ? textures.lobbyHardBg : textures.lobbyBg;
+    title.texture = currentMode === 'hard' ? textures.lobbyHardTitle : textures.worldText;
+    fitByWidth(title, 504);
+    applyProgress();
+  };
+
+  title.on('pointertap', () => {
+    currentMode = currentMode === 'basic' ? 'hard' : 'basic';
+    applyMode();
+  });
+
   const onResize = () => {
     layoutVirtualFrame(frame, app.renderer.width, app.renderer.height);
   };
@@ -342,7 +359,7 @@ export const createLobbyScene = ({
   return {
     container,
     onEnter: () => {
-      applyProgress();
+      applyMode();
       onResize();
     },
     onExit: () => {
