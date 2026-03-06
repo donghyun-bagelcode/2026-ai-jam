@@ -43,6 +43,9 @@ const STAGE_BUTTON_W_SMALL = 168;
 const STAGE_NUMBER_W = 62;
 const STAGE_NUMBER_H = 62;
 const STAGE_NUMBER_Y_OFFSET = -18;
+const STAGE_STAR_W = 52;
+const STAGE_STAR_GAP = 40;
+const STAGE_STAR_Y_OFFSET = -80;
 const TOP_BACK_ICON_W = 66;
 const TOP_HOME_ICON_W = 80;
 const PAGE_BUTTON_W = 108;
@@ -152,12 +155,12 @@ export const createLobbyScene = ({
   const stageNodes = STAGE_META.map((meta) =>
     createStageNode(PIXI, textures, meta.id, (stageId) => onSelectStage?.(stageId, currentMode))
   );
+
   for (const node of stageNodes) {
     const p = STAGE_POS[node.id];
 
     node.button.position.set(p.x, p.y);
     frame.addChild(node.button);
-    frame.addChild(node.starContainer);
 
     if (node.numberSprite) {
       if (node.numberSprite.texture) {
@@ -171,6 +174,10 @@ export const createLobbyScene = ({
       node.numberText.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
       frame.addChild(node.numberText);
     }
+  }
+
+  for (const node of stageNodes) {
+    frame.addChild(node.starContainer);
   }
 
   const characterBadge = createPlayableCharacterBadge(PIXI, textures);
@@ -441,16 +448,14 @@ const renderStageStars = (node, textures, stars) => {
     return;
   }
 
-  const starW = 36;
-  const gap = 34;
   const p = STAGE_POS[node.id];
-  node.starContainer.position.set(p.x, p.y - node.button.height * 0.58);
+  node.starContainer.position.set(p.x, p.y + STAGE_STAR_Y_OFFSET);
 
   for (let i = 0; i < stars; i += 1) {
     const star = new node.button.constructor(textures.star);
     star.anchor.set(0.5, 0.5);
-    fitByWidth(star, starW);
-    star.position.set((i - (stars - 1) * 0.5) * gap, 0);
+    fitByWidth(star, STAGE_STAR_W);
+    star.position.set((i - (stars - 1) * 0.5) * STAGE_STAR_GAP, 0);
     node.starContainer.addChild(star);
   }
 };
