@@ -51,6 +51,8 @@ const STAGE_STAR_Y_OFFSET = -80;
 const TOP_BACK_ICON_W = 66;
 const TOP_HOME_ICON_W = 80;
 const PAGE_BUTTON_W = 108;
+const PAGE_BACK_POS = { x: 86, y: 960 };
+const COMING_SOON_W = DESIGN_W;
 const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
@@ -58,16 +60,30 @@ const CHARACTER_POPUP_UI = {
   bgW: 900,
   centerX: 540,
   centerY: 960,
+  popupScaleX: 1,
+  popupScaleY: 1,
   titleW: 420,
+  titleX: 0,
+  titleY: -472,
+  titleScaleX: 1,
+  titleScaleY: 1,
   closeW: 52,
+  closeX: 378,
+  closeY: -524,
+  closeScaleX: 1,
+  closeScaleY: 1,
   okW: 220,
-  slotW: 170,
-  slotGapX: 28,
-  slotGapY: 32,
-  gridTopY: -130,
-  starsW: 20,
-  starsGap: 22,
-  portraitScale: 0.82,
+  okX: 0,
+  okY: 485,
+  okScaleX: 1,
+  okScaleY: 1,
+  slotW: 220,
+  slotGapX: 16,
+  slotGapY: 40,
+  gridTopY: -300,
+  starsW: 26,
+  starsGap: 28,
+  portraitScale: 0.85,
 };
 const CHARACTER_GRID_SLOT_TOTAL = 9;
 const CHARACTER_LIST = [
@@ -105,6 +121,7 @@ export const createLobbyScene = ({
   const container = new PIXI.Container();
   container.visible = false;
   let currentMode = 'basic';
+  let currentPage = 1;
 
   const frame = new PIXI.Container();
   container.addChild(frame);
@@ -151,6 +168,19 @@ export const createLobbyScene = ({
   topHome.cursor = 'pointer';
   frame.addChild(topHome);
 
+  const page1Container = new PIXI.Container();
+  frame.addChild(page1Container);
+
+  const page2Container = new PIXI.Container();
+  page2Container.visible = false;
+  frame.addChild(page2Container);
+
+  const comingSoon = new PIXI.Sprite(textures.lobbyComingSoon);
+  comingSoon.anchor.set(0.5, 0.5);
+  fitByWidth(comingSoon, COMING_SOON_W);
+  comingSoon.position.set(540, 960);
+  page2Container.addChild(comingSoon);
+
   const pageButton = new PIXI.Sprite(textures.pageButton);
   pageButton.anchor.set(0.5, 0.5);
   fitByWidth(pageButton, PAGE_BUTTON_W);
@@ -158,6 +188,16 @@ export const createLobbyScene = ({
   pageButton.eventMode = 'static';
   pageButton.cursor = 'pointer';
   frame.addChild(pageButton);
+
+  const pageBackButton = new PIXI.Sprite(textures.pageButton);
+  pageBackButton.anchor.set(0.5, 0.5);
+  fitByWidth(pageBackButton, PAGE_BUTTON_W);
+  pageBackButton.scale.x *= -1;
+  pageBackButton.position.set(PAGE_BACK_POS.x, PAGE_BACK_POS.y);
+  pageBackButton.eventMode = 'static';
+  pageBackButton.cursor = 'pointer';
+  pageBackButton.visible = false;
+  frame.addChild(pageBackButton);
 
   const stageNodes = STAGE_META.map((meta) =>
     createStageNode(PIXI, textures, meta.id, (stageId) => onSelectStage?.(stageId, currentMode))
@@ -167,30 +207,30 @@ export const createLobbyScene = ({
     const p = STAGE_POS[node.id];
 
     node.button.position.set(p.x, p.y);
-    frame.addChild(node.button);
+    page1Container.addChild(node.button);
 
     if (node.numberSprite) {
       if (node.numberSprite.texture) {
         fitByWidth(node.numberSprite, STAGE_NUMBER_W);
       }
       node.numberSprite.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
-      frame.addChild(node.numberSprite);
+      page1Container.addChild(node.numberSprite);
     }
 
     if (node.numberText) {
       node.numberText.position.set(p.x, p.y + STAGE_NUMBER_Y_OFFSET);
-      frame.addChild(node.numberText);
+      page1Container.addChild(node.numberText);
     }
   }
 
   for (const node of stageNodes) {
-    frame.addChild(node.starContainer);
+    page1Container.addChild(node.starContainer);
   }
 
   const characterBadge = createPlayableCharacterBadge(PIXI, textures);
   characterBadge.eventMode = 'static';
   characterBadge.cursor = 'pointer';
-  frame.addChild(characterBadge);
+  page1Container.addChild(characterBadge);
 
   let selectedCharacterId = normalizeCharacterId(getSelectedCharacter?.());
   let pendingCharacterId = selectedCharacterId;
@@ -213,6 +253,7 @@ export const createLobbyScene = ({
 
   const charPopupRoot = new PIXI.Container();
   charPopupRoot.position.set(CHARACTER_POPUP_UI.centerX, CHARACTER_POPUP_UI.centerY);
+  charPopupRoot.scale.set(CHARACTER_POPUP_UI.popupScaleX, CHARACTER_POPUP_UI.popupScaleY);
   charPopupContainer.addChild(charPopupRoot);
 
   const charPopupBg = new PIXI.Sprite(textures.charPopBg);
@@ -223,13 +264,21 @@ export const createLobbyScene = ({
   const charPopupTitle = new PIXI.Sprite(textures.charPopTitle);
   charPopupTitle.anchor.set(0.5, 0.5);
   fitByWidth(charPopupTitle, CHARACTER_POPUP_UI.titleW);
-  charPopupTitle.position.set(0, -charPopupBg.height * 0.37);
+  charPopupTitle.position.set(CHARACTER_POPUP_UI.titleX, CHARACTER_POPUP_UI.titleY);
+  charPopupTitle.scale.set(
+    charPopupTitle.scale.x * CHARACTER_POPUP_UI.titleScaleX,
+    charPopupTitle.scale.y * CHARACTER_POPUP_UI.titleScaleY
+  );
   charPopupRoot.addChild(charPopupTitle);
 
   const charPopupClose = new PIXI.Sprite(textures.charPopClose);
   charPopupClose.anchor.set(0.5, 0.5);
   fitByWidth(charPopupClose, CHARACTER_POPUP_UI.closeW);
-  charPopupClose.position.set(charPopupBg.width * 0.42, -charPopupBg.height * 0.41);
+  charPopupClose.position.set(CHARACTER_POPUP_UI.closeX, CHARACTER_POPUP_UI.closeY);
+  charPopupClose.scale.set(
+    charPopupClose.scale.x * CHARACTER_POPUP_UI.closeScaleX,
+    charPopupClose.scale.y * CHARACTER_POPUP_UI.closeScaleY
+  );
   charPopupClose.eventMode = 'static';
   charPopupClose.cursor = 'pointer';
   charPopupRoot.addChild(charPopupClose);
@@ -254,7 +303,11 @@ export const createLobbyScene = ({
   const charPopupOk = new PIXI.Sprite(textures.charPopOk);
   charPopupOk.anchor.set(0.5, 0.5);
   fitByWidth(charPopupOk, CHARACTER_POPUP_UI.okW);
-  charPopupOk.position.set(0, charPopupBg.height * 0.38);
+  charPopupOk.position.set(CHARACTER_POPUP_UI.okX, CHARACTER_POPUP_UI.okY);
+  charPopupOk.scale.set(
+    charPopupOk.scale.x * CHARACTER_POPUP_UI.okScaleX,
+    charPopupOk.scale.y * CHARACTER_POPUP_UI.okScaleY
+  );
   charPopupOk.eventMode = 'static';
   charPopupOk.cursor = 'pointer';
   charPopupRoot.addChild(charPopupOk);
@@ -366,6 +419,23 @@ export const createLobbyScene = ({
     applyMode();
   });
 
+  const applyPage = () => {
+    page1Container.visible = currentPage === 1;
+    page2Container.visible = currentPage === 2;
+    pageButton.visible = currentPage === 1;
+    pageBackButton.visible = currentPage === 2;
+  };
+
+  pageButton.on('pointertap', () => {
+    currentPage = 2;
+    applyPage();
+  });
+
+  pageBackButton.on('pointertap', () => {
+    currentPage = 1;
+    applyPage();
+  });
+
   const onResize = () => {
     layoutVirtualFrame(frame, app.renderer.width, app.renderer.height);
   };
@@ -373,6 +443,8 @@ export const createLobbyScene = ({
   return {
     container,
     onEnter: () => {
+      currentPage = 1;
+      applyPage();
       applyMode();
       onResize();
     },

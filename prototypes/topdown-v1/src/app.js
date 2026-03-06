@@ -29,6 +29,7 @@ const LOBBY_ASSET_PATHS = {
   back: './image/lobby/back.png',
   home: './image/lobby/home.png',
   pageButton: './image/lobby/page-button.png',
+  lobbyComingSoon: './image/lobby/page-comming-soon.png',
   lobbyCharacter: './image/lobby/character.png',
 };
 
