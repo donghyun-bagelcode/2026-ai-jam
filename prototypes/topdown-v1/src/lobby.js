@@ -24,7 +24,7 @@ const UI_POS = {
   starBar: { x: 540, y: 307 },
   back: { x: 65, y: 115 },
   home: { x: 151, y: 115 },
-  page: { x: 994, y: 1786 },
+  page: { x: 994, y: 960 },
 };
 
 const STAR_COUNTER_UI = {
