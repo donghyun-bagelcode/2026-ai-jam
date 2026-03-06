@@ -1,7 +1,18 @@
 import * as gameConfig from './config.js';
 import { getPixi } from './pixi.js';
 
-const SLIDE_DURATION_MS = gameConfig.SLIDE_DURATION_MS ?? 260;
+const PLAYER_MOVE_TUNING =
+  gameConfig.PLAYER_MOVE_TUNING ?? {
+    slideDurationMs: gameConfig.SLIDE_DURATION_MS ?? 260,
+    characterScale: 1.28,
+    characterBottomOffset: -0.04,
+    characterXOffset: -0.05,
+    characterZIndexBiasRatio: 0.5,
+    walkFrameStartCol: 1,
+    walkFrameCount: 3,
+    walkCycleCount: 2,
+  };
+const SLIDE_DURATION_MS = PLAYER_MOVE_TUNING.slideDurationMs ?? gameConfig.SLIDE_DURATION_MS ?? 260;
 const TILE_SIZE = gameConfig.TILE_SIZE ?? 64;
 const CHARACTER_ANCHOR =
   gameConfig.CHARACTER_ANCHOR ?? {
@@ -12,15 +23,15 @@ const CHARACTER_ANCHOR =
   };
 
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
-const CHARACTER_SCALE = 1.28;
-const CHARACTER_BOTTOM_OFFSET = -0.04;
-const CHARACTER_X_OFFSET = -0.05;
-const CHARACTER_Z_INDEX_BIAS = TILE_SIZE * 0.5;
+const CHARACTER_SCALE = PLAYER_MOVE_TUNING.characterScale ?? 1.28;
+const CHARACTER_BOTTOM_OFFSET = PLAYER_MOVE_TUNING.characterBottomOffset ?? -0.04;
+const CHARACTER_X_OFFSET = PLAYER_MOVE_TUNING.characterXOffset ?? -0.05;
+const CHARACTER_Z_INDEX_BIAS = TILE_SIZE * (PLAYER_MOVE_TUNING.characterZIndexBiasRatio ?? 0.5);
 const SHEET_COLS = 4;
 const SHEET_ROWS = 4;
-const WALK_FRAME_START_COL = 1;
-const WALK_FRAME_COUNT = 3;
-const WALK_CYCLE_COUNT = 2;
+const WALK_FRAME_START_COL = PLAYER_MOVE_TUNING.walkFrameStartCol ?? 1;
+const WALK_FRAME_COUNT = PLAYER_MOVE_TUNING.walkFrameCount ?? 3;
+const WALK_CYCLE_COUNT = PLAYER_MOVE_TUNING.walkCycleCount ?? 2;
 const DIRECTION_ROWS = ['down', 'right', 'left', 'up'];
 
 export class Player {

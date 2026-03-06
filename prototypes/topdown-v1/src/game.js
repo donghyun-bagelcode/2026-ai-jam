@@ -1,5 +1,6 @@
 import { Board } from './board.js';
-import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE } from './config.js';
+import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE, TRAIL_TUNING } from './config.js';
+import { AudioManager } from './audio.js';
 import { DebugUI } from './debug-ui.js';
 import { SwipeInput } from './input.js';
 import { Player } from './player.js';
@@ -12,6 +13,7 @@ const BACK_ICON_W = 66;
 const BACK_ICON_POS = { x: 65, y: 115 };
 const STAGE_ICON_W = 136;
 const RESET_ICON_W = 56;
+const TRAIL_TRIGGER_PROGRESS = Math.max(0, Math.min(1, TRAIL_TUNING?.triggerProgress ?? 1));
 
 let debugUi = null;
 
@@ -190,7 +192,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
       if (slideResult.moved) {
         state.moveCount += 1;
-        pendingSlideOutcome = { path: slideResult.path, applied: false };
+        pendingSlideOutcome = { path: slideResult.path, applied: false, trailPlayed: false };
       }
 
       const after = player.getGridPosition();
@@ -223,9 +225,17 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       pendingSlideOutcome.applied = true;
     }
 
+    if (pendingSlideOutcome && !pendingSlideOutcome.trailPlayed && player.getAnimationProgress() >= TRAIL_TRIGGER_PROGRESS) {
+      board?.playTrail(pendingSlideOutcome.path, tweens);
+      pendingSlideOutcome.trailPlayed = true;
+    }
+
     if (pendingSlideOutcome && !player.isAnimating()) {
       if (!pendingSlideOutcome.applied) {
         applySlideOutcome(pendingSlideOutcome.path);
+      }
+      if (!pendingSlideOutcome.trailPlayed) {
+        board?.playTrail(pendingSlideOutcome.path, tweens);
       }
       pendingSlideOutcome = null;
     }
@@ -263,6 +273,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       buildStage(nextStageId);
     }
     resetGameplay();
+    AudioManager.playBgm(state.mode === 'hard' ? 'bgm/BGM-05_hard.mp3' : 'bgm/BGM-04_Ingame.mp3');
 
     onResize();
     setUiVisible(true);
@@ -279,6 +290,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   const onExit = () => {
     state.active = false;
+    AudioManager.stopBgm();
     setUiVisible(false);
   };
 
@@ -293,6 +305,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   const destroy = () => {
     setUiVisible(false);
+    board?.clearTrailOverlays(tweens);
     tweens.destroy();
     app.ticker.remove(tickerUpdate);
     input.targetElement?.removeEventListener?.('pointerdown', input.handlePointerDown);
@@ -345,7 +358,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     state.keyGoal = currentStage.keys.length;
 
     player.resetTo(currentStage.start);
-    board.resetObjects();
+    board.resetObjects(tweens);
     hideClear();
     updateHud();
 
@@ -360,6 +373,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     const characterId = getCharacterId?.() ?? 'knight';
 
     if (board) {
+      board.clearTrailOverlays(tweens);
       frame.removeChild(board.container);
     }
 

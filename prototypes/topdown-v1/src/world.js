@@ -1,5 +1,6 @@
 import { getPixi } from './pixi.js';
 import { clearProgress } from './save-data.js';
+import { AudioManager } from './audio.js';
 import { Easing, TweenManager } from './tween.js';
 
 const DESIGN_W = 1080;
@@ -193,10 +194,12 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
   return {
     container,
     onEnter: () => {
+      AudioManager.playBgm('bgm/BGM-02_World list.mp3');
       recalcScrollBounds();
       onResize();
     },
     onExit: () => {
+      AudioManager.stopBgm();
       dragState.active = false;
       dragState.moved = false;
     },

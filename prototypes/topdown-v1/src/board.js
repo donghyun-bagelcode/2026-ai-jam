@@ -1,4 +1,4 @@
-import { BOARD_PADDING, GRID_COLS, GRID_ROWS, TILE_GAP, TILE_SIZE } from './config.js';
+import { BOARD_PADDING, GRID_COLS, GRID_ROWS, TILE_GAP, TILE_SIZE, TRAIL_TUNING } from './config.js';
 import { getPixi } from './pixi.js';
 
 const BOARD_SCALE_RATIO = 1.15;
@@ -19,6 +19,9 @@ const OBJECT_OFFSET = {
 const OBJECT_Z_ORDER_BIAS = {
   portal: 2,
 };
+const TRAIL_ALPHA = TRAIL_TUNING?.alpha ?? 0.5;
+const TRAIL_FADE_DURATION = TRAIL_TUNING?.fadeDurationMs ?? 400;
+const TRAIL_STAGGER_MS = TRAIL_TUNING?.staggerMs ?? 60;
 
 export class Board {
   constructor(stage, walls, keyCells, portalCell, textures) {
@@ -36,9 +39,11 @@ export class Board {
 
     this.container = new this.PIXI.Container();
     this.stage.addChild(this.container);
+    this.trailLayer = new this.PIXI.Container();
     this.objectLayer = new this.PIXI.Container();
     this.objectLayer.sortableChildren = true;
     this.portalSprite = null;
+    this.trailOverlays = new Set();
 
     this.gridPixelWidth = GRID_COLS * TILE_SIZE + (GRID_COLS - 1) * TILE_GAP;
     this.gridPixelHeight = GRID_ROWS * TILE_SIZE + (GRID_ROWS - 1) * TILE_GAP;
@@ -100,6 +105,7 @@ export class Board {
       }
     }
 
+    this.container.addChild(this.trailLayer);
     this.container.addChild(this.objectLayer);
     this.renderObjects();
   }
@@ -189,7 +195,52 @@ export class Board {
     return pathCells.some((cell) => cell.x === this.portalCell.x && cell.y === this.portalCell.y);
   }
 
-  resetObjects() {
+  playTrail(pathCells, tweenManager) {
+    if (!pathCells || pathCells.length === 0 || !this.textures.trailTile || !tweenManager) {
+      return;
+    }
+
+    for (let i = 0; i < pathCells.length; i += 1) {
+      const cell = pathCells[i];
+      const pos = this.toPixel(cell.x, cell.y);
+      const overlay = new this.PIXI.Sprite(this.textures.trailTile);
+      overlay.width = TILE_SIZE;
+      overlay.height = TILE_SIZE;
+      overlay.x = pos.x;
+      overlay.y = pos.y;
+      overlay.alpha = TRAIL_ALPHA;
+      this.trailLayer.addChild(overlay);
+      this.trailOverlays.add(overlay);
+
+      const fadeDelay = i * TRAIL_STAGGER_MS;
+      tweenManager.to(overlay, { alpha: 0 }, TRAIL_FADE_DURATION, {
+        delay: fadeDelay,
+        onComplete: () => {
+          if (overlay.parent) {
+            overlay.parent.removeChild(overlay);
+          }
+          overlay.destroy();
+          this.trailOverlays.delete(overlay);
+        },
+      });
+    }
+  }
+
+  clearTrailOverlays(tweenManager = null) {
+    for (const overlay of this.trailOverlays) {
+      if (tweenManager) {
+        tweenManager.cancelAll(overlay);
+      }
+      if (overlay.parent) {
+        overlay.parent.removeChild(overlay);
+      }
+      overlay.destroy();
+    }
+    this.trailOverlays.clear();
+  }
+
+  resetObjects(tweenManager = null) {
+    this.clearTrailOverlays(tweenManager);
     this.keyCells = new Set(this.keyCellsInitial.map((cell) => wallKey(cell.x, cell.y)));
     this.portalActive = false;
     this.renderObjects();

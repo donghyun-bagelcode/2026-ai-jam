@@ -1,4 +1,5 @@
 import { ASSET_PATHS } from './config.js';
+import { AudioManager } from './audio.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
 import * as saveData from './save-data.js';
@@ -111,17 +112,26 @@ const CHARACTER_POPUP_ASSET_PATHS = {
   charPopLocked5: './image/lobby-popup/character select_5.png',
 };
 
+const INGAME_FX_ASSET_PATHS = {
+  trailTile: './image/ingame/character-move-color-tile.png',
+};
+
 const bootstrap = async () => {
   const root = document.getElementById('app');
   if (!root) {
     throw new Error('app container(#app)을 찾지 못했습니다.');
   }
 
+  AudioManager.installUnlockOnFirstGesture();
+  AudioManager.installDebugHotkey('F8');
+  AudioManager.setDebugVisible(false);
+
   const app = await createPixiApp(root);
   root.appendChild(app.canvas ?? app.view);
 
   const textures = await loadTextures({
     ...ASSET_PATHS,
+    ...INGAME_FX_ASSET_PATHS,
     ...LOBBY_ASSET_PATHS,
     ...LOBBY_HARD_ASSET_PATHS,
     ...WORLD_ASSET_PATHS,

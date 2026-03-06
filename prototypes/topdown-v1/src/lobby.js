@@ -1,5 +1,6 @@
 import { getPixi } from './pixi.js';
 import * as gameConfig from './config.js';
+import { AudioManager } from './audio.js';
 import { Easing, TweenManager } from './tween.js';
 
 const STAGE_COUNT = gameConfig.STAGE_COUNT ?? gameConfig.STAGES?.length ?? 10;
@@ -530,12 +531,14 @@ export const createLobbyScene = ({
   return {
     container,
     onEnter: () => {
+      AudioManager.playBgm('bgm/BGM-03_stage world 1.mp3');
       currentPage = 1;
       applyPage();
       applyMode();
       onResize();
     },
     onExit: () => {
+      AudioManager.stopBgm();
       closeCharacterPopup();
     },
     onResize,

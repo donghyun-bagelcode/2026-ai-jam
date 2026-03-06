@@ -5,6 +5,26 @@ export const TILE_GAP = 0;
 export const BOARD_PADDING = 0;
 export const SLIDE_DURATION_MS = 260;
 
+// 캐릭터 이동/표시 튜닝값: 이동감, 위치, 워크 사이클을 한곳에서 조절
+export const PLAYER_MOVE_TUNING = {
+  slideDurationMs: 450,
+  characterScale: 1.28,
+  characterBottomOffset: -0.04,
+  characterXOffset: -0.05,
+  characterZIndexBiasRatio: 0.5,
+  walkFrameStartCol: 1,
+  walkFrameCount: 3,
+  walkCycleCount: 2,
+};
+
+// 슬라이드 트레일 튜닝값: 투명도/사라지는 속도/순차 간격
+export const TRAIL_TUNING = {
+  alpha: 0.5,
+  fadeDurationMs: 400,
+  staggerMs: 60,
+  triggerProgress: 0.7,
+};
+
 export const COLORS = {
   bg: 0xf0f2f5,
   floor: 0xdadfe5,
