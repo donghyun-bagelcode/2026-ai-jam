@@ -55,17 +55,44 @@ const STAGE_HUD_NUMBER_TRANSFORM = {
   scale: 0.8,
 };
 
+const DEBUG_FORCE_CLEAR_POPUP_ON_ENTER = false;
+const DEBUG_FORCE_CLEAR_POPUP_STARS = 3;
+const DEBUG_FORCE_CLEAR_BLOCK_INPUT = true;
+
 const POPUP_UI = {
   bgW: 560,
   bgY: 980,
-  completeW: 360,
-  stageW: 150,
-  stageNumH: 48,
-  starW: 88,
-  starsGap: 104,
-  replayW: 184,
-  nextW: 184,
+  scale: 1.4,
+  completeW: 310,
+  completePosX: 0,
+  completePosYRatio: -0.33,
+  completePosYOffset: -50,
+  stageW: 180,
+  stagePosX: -50,
+  stagePosYRatio: -0.13,
+  stagePosYOffset: -20,
+  stageNumH: 60,
+  stageNumGap: 2,
+  stageNumPosX: 86,
+  stageNumPosYRatio: -0.13,
+  stageNumPosYOffset: -20,
+  starW: 120,
+  starsGap: 142,
+  starsYRatio: 0.03,
+  starsYOffset: 0,
+  replayW: 210,
+  replayPosX: -114,
+  replayPosYRatio: 0.29,
+  replayPosYOffset: 15,
+  nextW: 210,
+  nextPosX: 114,
+  nextPosYRatio: 0.29,
+  nextPosYOffset: 15,
   exitW: 86,
+  exitPosXRatio: 0.45,
+  exitPosYRatio: -0.46,
+  exitPosXOffset: 0,
+  exitPosYOffset: 0,
 };
 
 export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, getCharacterSheet, getCharacterId }) => {
@@ -237,6 +264,13 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
     onResize();
     setUiVisible(true);
+
+    if (DEBUG_FORCE_CLEAR_POPUP_ON_ENTER) {
+      state.stars = Math.max(0, Math.min(3, DEBUG_FORCE_CLEAR_POPUP_STARS));
+      state.clear = DEBUG_FORCE_CLEAR_BLOCK_INPUT;
+      showClear(state.stars);
+    }
+
     const pos = player.getGridPosition();
     debugUi?.setState({ grid: `(${pos.x}, ${pos.y})`, animating: player.isAnimating() });
   };
@@ -447,7 +481,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   function createPopup() {
     popupContainer = new PIXI.Container();
-    popupContainer.scale.set(0.9);
+    popupContainer.scale.set(POPUP_UI.scale);
     popupContainer.visible = false;
     popupContainer.eventMode = 'static';
     popupContainer.cursor = 'default';
@@ -460,20 +494,29 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupCompleteSprite = new PIXI.Sprite(textures.popupComplete);
     popupCompleteSprite.anchor.set(0.5, 0.5);
     fitSpriteByWidth(popupCompleteSprite, POPUP_UI.completeW);
-    popupCompleteSprite.position.set(0, -popupBgSprite.height * 0.33);
+    popupCompleteSprite.position.set(
+      POPUP_UI.completePosX,
+      popupBgSprite.height * POPUP_UI.completePosYRatio + POPUP_UI.completePosYOffset
+    );
     popupContainer.addChild(popupCompleteSprite);
 
     popupStageSprite = new PIXI.Sprite(textures.popupStage);
     popupStageSprite.anchor.set(0.5, 0.5);
     fitSpriteByWidth(popupStageSprite, POPUP_UI.stageW);
-    popupStageSprite.position.set(-50, -popupBgSprite.height * 0.13);
+    popupStageSprite.position.set(
+      POPUP_UI.stagePosX,
+      popupBgSprite.height * POPUP_UI.stagePosYRatio + POPUP_UI.stagePosYOffset
+    );
     popupContainer.addChild(popupStageSprite);
 
     popupStageDigitsContainer = new PIXI.Container();
-    popupStageDigitsContainer.position.set(86, -popupBgSprite.height * 0.13);
+    popupStageDigitsContainer.position.set(
+      POPUP_UI.stageNumPosX,
+      popupBgSprite.height * POPUP_UI.stageNumPosYRatio + POPUP_UI.stageNumPosYOffset
+    );
     popupContainer.addChild(popupStageDigitsContainer);
 
-    const starY = popupBgSprite.height * 0.03;
+    const starY = popupBgSprite.height * POPUP_UI.starsYRatio + POPUP_UI.starsYOffset;
     popupStarSprites = [-1, 0, 1].map((offset) => {
       const star = new PIXI.Sprite(textures.popupStarEmpty);
       star.anchor.set(0.5, 0.5);
@@ -486,7 +529,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupReplayBtn = new PIXI.Sprite(textures.popupReplay);
     popupReplayBtn.anchor.set(0.5, 0.5);
     fitSpriteByWidth(popupReplayBtn, POPUP_UI.replayW);
-    popupReplayBtn.position.set(-104, popupBgSprite.height * 0.29);
+    popupReplayBtn.position.set(
+      POPUP_UI.replayPosX,
+      popupBgSprite.height * POPUP_UI.replayPosYRatio + POPUP_UI.replayPosYOffset
+    );
     popupReplayBtn.eventMode = 'static';
     popupReplayBtn.cursor = 'pointer';
     popupReplayBtn.on('pointertap', () => {
@@ -498,7 +544,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupNextBtn = new PIXI.Sprite(textures.popupNext);
     popupNextBtn.anchor.set(0.5, 0.5);
     fitSpriteByWidth(popupNextBtn, POPUP_UI.nextW);
-    popupNextBtn.position.set(104, popupBgSprite.height * 0.29);
+    popupNextBtn.position.set(
+      POPUP_UI.nextPosX,
+      popupBgSprite.height * POPUP_UI.nextPosYRatio + POPUP_UI.nextPosYOffset
+    );
     popupNextBtn.eventMode = 'static';
     popupNextBtn.cursor = 'pointer';
     popupNextBtn.on('pointertap', () => {
@@ -517,7 +566,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupExitBtn = new PIXI.Sprite(textures.popupExit);
     popupExitBtn.anchor.set(0.5, 0.5);
     fitSpriteByWidth(popupExitBtn, POPUP_UI.exitW);
-    popupExitBtn.position.set(popupBgSprite.width * 0.45, -popupBgSprite.height * 0.46);
+    popupExitBtn.position.set(
+      popupBgSprite.width * POPUP_UI.exitPosXRatio + POPUP_UI.exitPosXOffset,
+      popupBgSprite.height * POPUP_UI.exitPosYRatio + POPUP_UI.exitPosYOffset
+    );
     popupExitBtn.eventMode = 'static';
     popupExitBtn.cursor = 'pointer';
     popupExitBtn.on('pointertap', () => {
@@ -710,7 +762,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     }
 
     if (sprites.length > 1) {
-      totalW += 8 * (sprites.length - 1);
+      totalW += POPUP_UI.stageNumGap * (sprites.length - 1);
     }
 
     let x = -totalW * 0.5;
@@ -719,7 +771,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       x += spr.width * 0.5;
       spr.position.set(x, 0);
       popupStageDigitsContainer.addChild(spr);
-      x += spr.width * 0.5 + 8;
+      x += spr.width * 0.5 + POPUP_UI.stageNumGap;
     }
   }
 
