@@ -599,6 +599,7 @@ const createStageNode = (PIXI, textures, stageId, onSelectStage, tweens) => {
       button.scale.set(baseScaleX * 0.92, baseScaleY * 0.92);
       tweens.cancelAll(button.scale);
       tweens.to(button.scale, { x: baseScaleX, y: baseScaleY }, 100, { easing: Easing.backOut });
+      AudioManager.playSfx('ui/sfx-ui-tap-01.mp3', { volume: 0.5 });
       onSelectStage?.(node.id);
     }
   });

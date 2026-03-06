@@ -192,6 +192,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
       if (slideResult.moved) {
         state.moveCount += 1;
+        AudioManager.playSfx('sfx/sfx-game-swipe-start-01.mp3', { volume: 0.4 });
         pendingSlideOutcome = { path: slideResult.path, applied: false, trailPlayed: false };
       }
 
@@ -237,6 +238,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       if (!pendingSlideOutcome.trailPlayed) {
         board?.playTrail(pendingSlideOutcome.path, tweens);
       }
+      AudioManager.playSfx('sfx/sfx-game-wall-hit-01.mp3', { volume: 0.5 });
       pendingSlideOutcome = null;
     }
 
@@ -317,6 +319,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     if (!button) {
       return;
     }
+    AudioManager.playSfx('ui/sfx-ui-tap-01.mp3', { volume: 0.5 });
     tweens.cancelAll(button);
     button.alpha = 0.7;
     tweens.to(button, { alpha: 1 }, 100);
@@ -328,10 +331,12 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     }
     const gained = board.collectKeysOnPath(path);
     if (gained > 0) {
+      AudioManager.playSfx('sfx/sfx-game-key-pickup-01.mp3', { volume: 0.7 });
       state.keyCollected += gained;
       if (state.keyCollected >= state.keyGoal && !state.portalActive) {
         state.portalActive = true;
         board.setPortalActive(true);
+        AudioManager.playSfx('sfx/sfx-game-portal-activate-01.mp3', { volume: 0.8 });
       }
     }
 
@@ -490,6 +495,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       if (!state.active || state.clear) {
         return;
       }
+      AudioManager.playSfx('system/sfx-retry-01.mp3', { volume: 0.6 });
       resetGameplay();
     });
     hudOverlay.addChild(resetIcon);
@@ -569,6 +575,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupReplayBtn.cursor = 'pointer';
     popupReplayBtn.on('pointertap', () => {
       playTapAlphaFeedback(popupReplayBtn);
+      AudioManager.playSfx('system/sfx-retry-01.mp3', { volume: 0.6 });
       hideClear();
       resetGameplay();
     });
@@ -585,6 +592,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupNextBtn.cursor = 'pointer';
     popupNextBtn.on('pointertap', () => {
       playTapAlphaFeedback(popupNextBtn);
+      AudioManager.playSfx('system/sfx-next-01.mp3', { volume: 0.6 });
       const nextStageId = state.stageId + 1;
       hideClear();
       if (nextStageId > STAGE_COUNT) {
@@ -753,6 +761,13 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     if (!popupContainer) {
       return;
     }
+    const starCount = Math.max(0, Math.min(stars, popupStarSprites.length));
+    if (starCount === 3) {
+      AudioManager.playJingle('bgm/bgm7-perfect-jingle-01.mp3', { volume: 0.8 });
+    } else {
+      AudioManager.playJingle('bgm/bgm6-clear-jingle-01.mp3', { volume: 0.7 });
+    }
+
     renderPopupStageNumber(state.stageId);
     for (const star of popupStarSprites) {
       tweens.cancelAll(star.scale);
@@ -764,7 +779,6 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupContainer.scale.set(0.01, 0.01);
     tweens.to(popupContainer.scale, { x: POPUP_UI.scale, y: POPUP_UI.scale }, 180, { easing: Easing.backOut });
 
-    const starCount = Math.max(0, Math.min(stars, popupStarSprites.length));
     for (let i = 0; i < starCount; i += 1) {
       const star = popupStarSprites[i];
       const delay = 300 + i * 180;
@@ -772,6 +786,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
         delay: delay - 1,
         onComplete: () => {
           star.texture = textures.popupStar;
+          AudioManager.playSfx(`system/sfx-result-star-pop-0${i + 1}.mp3`, { volume: 0.7 });
           const baseX = star.fxBaseScaleX ?? 1;
           const baseY = star.fxBaseScaleY ?? 1;
           star.scale.set(baseX * 1.4, baseY * 1.4);

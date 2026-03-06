@@ -103,6 +103,7 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
     if (meta.playable) {
       sprite.on('pointertap', () => {
         if (!dragState.moved) {
+          AudioManager.playSfx('ui/sfx-ui-tap-01.mp3', { volume: 0.5 });
           playTapPop();
           onSelectWorld?.(meta.id);
         }
@@ -110,6 +111,7 @@ export const createWorldScene = ({ app, textures, onSelectWorld }) => {
     } else {
       sprite.on('pointertap', () => {
         if (!dragState.moved) {
+          AudioManager.playSfx('ui/sfx-ui-lock-denied-01.mp3', { volume: 0.6 });
           playLockedShake();
         }
       });
