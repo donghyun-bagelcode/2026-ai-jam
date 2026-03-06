@@ -1,5 +1,5 @@
 import { Board } from './board.js';
-import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE, TILE_SIZE } from './config.js';
+import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE } from './config.js';
 import { DebugUI } from './debug-ui.js';
 import { SwipeInput } from './input.js';
 import { Player } from './player.js';
@@ -9,11 +9,8 @@ const DESIGN_W = 1080;
 const DESIGN_H = 1920;
 const BACK_ICON_W = 66;
 const BACK_ICON_POS = { x: 65, y: 115 };
-const HUD_CORNER_PADDING_X = 0;
-const HUD_CORNER_PADDING_Y = 0;
 const STAGE_LABEL_FONT_SIZE = 52;
 const RESET_ICON_W = 56;
-const HUD_STAGE_BOUNDS = { leftCol: 1, rightCol: 5, topRow: 1, bottomRow: 7 };
 
 let debugUi = null;
 
@@ -513,29 +510,19 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     const boardLeft = currentBoard.container.x;
     const boardRight = boardLeft + boardWidth;
     const boardBottom = boardTop + boardHeight;
+    const hudTopY = boardTop;
+    const hudBottomY = boardBottom;
 
-    keyHudContainer.position.set(
-      boardLeft + HUD_CORNER_PADDING_X,
-      Math.max(40, boardTop - HUD_CORNER_PADDING_Y)
-    );
+    keyHudContainer.position.set(boardLeft, hudTopY);
 
-    moveHudContainer.position.set(
-      boardRight - HUD_CORNER_PADDING_X,
-      Math.max(40, boardTop - HUD_CORNER_PADDING_Y)
-    );
+    moveHudContainer.position.set(boardRight, hudTopY);
 
     if (resetIcon) {
-      resetIcon.position.set(
-        boardLeft + HUD_CORNER_PADDING_X,
-        Math.min(1880, boardBottom + HUD_CORNER_PADDING_Y)
-      );
+      resetIcon.position.set(boardLeft, hudBottomY);
     }
 
     if (stageLabelText) {
-      stageLabelText.position.set(
-        boardRight - HUD_CORNER_PADDING_X,
-        Math.min(1880, boardBottom + HUD_CORNER_PADDING_Y)
-      );
+      stageLabelText.position.set(boardRight, hudBottomY);
     }
 
     if (popupContainer) {

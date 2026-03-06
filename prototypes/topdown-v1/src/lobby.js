@@ -55,6 +55,8 @@ const PAGE_BACK_POS = { x: 86, y: 960 };
 const COMING_SOON_W = DESIGN_W;
 const PROFILE_ICON_POS = { x: 980, y: 115 };
 const PROFILE_ICON_RADIUS = 120;
+const PROFILE_FRAME_W = PROFILE_ICON_RADIUS * 2 + 16;
+const PROFILE_PORTRAIT_W = PROFILE_ICON_RADIUS * 2 - 16;
 const PROFILE_BADGE_W = 56;
 const PROFILE_BADGE_OFFSET = { x: -80, y: 60 };
 const SELECT_CHARACTER_H = 220;
@@ -240,6 +242,11 @@ export const createLobbyScene = ({
   profileIconContainer.position.set(PROFILE_ICON_POS.x, PROFILE_ICON_POS.y);
   frame.addChild(profileIconContainer);
 
+  const profileFrame = new PIXI.Sprite(textures.profileFrame1);
+  profileFrame.anchor.set(0.5, 0.5);
+  fitByWidth(profileFrame, PROFILE_FRAME_W);
+  profileIconContainer.addChild(profileFrame);
+
   const profileMask = new PIXI.Graphics();
   profileMask.beginFill(0xffffff);
   profileMask.drawCircle(0, 0, PROFILE_ICON_RADIUS);
@@ -248,7 +255,7 @@ export const createLobbyScene = ({
 
   const profilePortrait = new PIXI.Sprite(textures.charPopKnight);
   profilePortrait.anchor.set(0.5, 0.25);
-  fitByWidth(profilePortrait, PROFILE_ICON_RADIUS * 2);
+  fitByWidth(profilePortrait, PROFILE_PORTRAIT_W);
   profilePortrait.mask = profileMask;
   profileIconContainer.addChild(profilePortrait);
 
@@ -358,7 +365,7 @@ export const createLobbyScene = ({
     fitByHeight(characterBadge, SELECT_CHARACTER_H);
     profilePortrait.texture = textures[textureKey] ?? textures.charPopKnight;
     profilePortrait.anchor.set(0.5, 0.25);
-    fitByWidth(profilePortrait, PROFILE_ICON_RADIUS * 2);
+    fitByWidth(profilePortrait, PROFILE_PORTRAIT_W);
   };
 
   const openCharacterPopup = () => {
