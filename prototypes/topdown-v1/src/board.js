@@ -1,13 +1,23 @@
 import { BOARD_PADDING, GRID_COLS, GRID_ROWS, TILE_GAP, TILE_SIZE } from './config.js';
 import { getPixi } from './pixi.js';
 
+const BOARD_SCALE_RATIO = 1.15;
+const BOARD_Y_RATIO = 0.05;
+
 const wallKey = (x, y) => `${x},${y}`;
+const KEY_OBJECT_SCALE = 1;
+const BLOCK_OBJECT_SCALE = {
+  x: 1,
+  y: 1.1,
+};
 const OBJECT_SCALE = {
-  key: 0.96,
   portal: 1.66,
 };
 const OBJECT_OFFSET = {
   keyBottom: -0.08,
+};
+const OBJECT_Z_ORDER_BIAS = {
+  portal: 2,
 };
 
 export class Board {
@@ -39,23 +49,23 @@ export class Board {
   }
 
   layout(viewWidth, viewHeight) {
-    const scaleX = (viewWidth * 0.95) / this.boardPixelWidth;
-    const scaleY = (viewHeight * 0.95) / this.boardPixelHeight;
+    const scaleX = (viewWidth * BOARD_SCALE_RATIO) / this.boardPixelWidth;
+    const scaleY = (viewHeight * BOARD_SCALE_RATIO) / this.boardPixelHeight;
     const boardScale = Math.min(scaleX, scaleY);
 
     this.container.scale.set(boardScale);
     this.container.x = Math.floor((viewWidth - this.boardPixelWidth * boardScale) * 0.5);
-    this.container.y = Math.floor(viewHeight * 0.05);
+    this.container.y = Math.floor(viewHeight * BOARD_Y_RATIO);
   }
 
   layoutInRect(rect) {
-    const scaleX = (rect.width * 0.95) / this.boardPixelWidth;
-    const scaleY = (rect.height * 0.95) / this.boardPixelHeight;
+    const scaleX = (rect.width * BOARD_SCALE_RATIO) / this.boardPixelWidth;
+    const scaleY = (rect.height * BOARD_SCALE_RATIO) / this.boardPixelHeight;
     const boardScale = Math.min(scaleX, scaleY);
 
     this.container.scale.set(boardScale);
     this.container.x = Math.floor(rect.x + (rect.width - this.boardPixelWidth * boardScale) * 0.5);
-    this.container.y = Math.floor(rect.y + rect.height * 0.05);
+    this.container.y = Math.floor(rect.y + rect.height * BOARD_Y_RATIO);
   }
 
   draw() {
@@ -79,11 +89,12 @@ export class Board {
 
         if (this.isWall(x, y)) {
           const wall = new this.PIXI.Sprite(this.textures.wall);
-          wall.width = TILE_SIZE;
-          wall.height = TILE_SIZE;
-          wall.x = world.x;
-          wall.y = world.y;
-          wall.zIndex = wall.y + TILE_SIZE;
+          wall.anchor.set(0.5, 0.5);
+          wall.width = TILE_SIZE * BLOCK_OBJECT_SCALE.x;
+          wall.height = TILE_SIZE * BLOCK_OBJECT_SCALE.y;
+          wall.x = world.x + TILE_SIZE * 0.5;
+          wall.y = world.y + TILE_SIZE * 0.5;
+          wall.zIndex = wall.y + wall.height * 0.5;
           this.objectLayer.addChild(wall);
         }
       }
@@ -102,7 +113,7 @@ export class Board {
   renderKeys() {
     for (const key of this.keyCells) {
       const [x, y] = key.split(',').map(Number);
-      const keyGraphic = this.createObjectSprite(this.textures.key, OBJECT_SCALE.key);
+      const keyGraphic = this.createObjectSprite(this.textures.key, KEY_OBJECT_SCALE);
       keyGraphic.anchor.set(0.5, 1);
       const pos = this.toPixel(x, y);
       keyGraphic.x = pos.x + TILE_SIZE * 0.5;
@@ -121,7 +132,8 @@ export class Board {
     const pos = this.toPixel(this.portalCell.x, this.portalCell.y);
     portal.x = pos.x + TILE_SIZE * 0.5;
     portal.y = pos.y + TILE_SIZE * 0.5;
-    portal.zIndex = portal.y;
+    // 포탈은 중심이 아닌 하단 기준으로 정렬하고, 동률일 때 다른 오브젝트보다 위에 오르게 한다.
+    portal.zIndex = portal.y + portal.height * 0.5 + OBJECT_Z_ORDER_BIAS.portal;
     portal.boardObject = true;
     this.objectLayer.addChild(portal);
     this.portalSprite = portal;

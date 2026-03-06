@@ -141,6 +141,7 @@ const bootstrap = async () => {
     app,
     root,
     textures,
+    getCharacterId: () => selectedCharacterId,
     getCharacterSheet: () => {
       const sheetMap = {
         knight: textures.charSheetKnight,

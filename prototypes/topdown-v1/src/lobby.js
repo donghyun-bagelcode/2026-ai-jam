@@ -1,5 +1,14 @@
 import { getPixi } from './pixi.js';
-import { STAGE_COUNT } from './config.js';
+import * as gameConfig from './config.js';
+
+const STAGE_COUNT = gameConfig.STAGE_COUNT ?? gameConfig.STAGES?.length ?? 10;
+const CHARACTER_ANCHOR =
+  gameConfig.CHARACTER_ANCHOR ?? {
+    knight: { x: 0.5, y: 0.5 },
+    thief: { x: 0.5, y: 0.5 },
+    archer: { x: 0.5, y: 0.5 },
+    magician: { x: 0.5, y: 0.5 },
+  };
 
 const DESIGN_W = 1080;
 const DESIGN_H = 1920;
@@ -368,7 +377,9 @@ export const createLobbyScene = ({
   const applyCharacterBadge = () => {
     const textureKey = CHARACTER_TEXTURE_BY_ID[selectedCharacterId];
     const texture = textures[textureKey] ?? textures.lobbyCharacter;
+    const charAnchor = CHARACTER_ANCHOR[selectedCharacterId] ?? { x: 0.5, y: 0.5 };
     characterBadge.texture = texture;
+    characterBadge.anchor.set(charAnchor.x, charAnchor.y);
     fitByHeight(characterBadge, SELECT_CHARACTER_H);
     profilePortrait.texture = textures[textureKey] ?? textures.charPopKnight;
     profilePortrait.anchor.set(PROFILE_PORTRAIT_ANCHOR.x, PROFILE_PORTRAIT_ANCHOR.y);
@@ -624,7 +635,8 @@ const createCharacterSlot = (PIXI, textures, character) => {
   container.addChild(frame);
 
   const portrait = new PIXI.Sprite(textures[character.textureKey]);
-  portrait.anchor.set(0.5, 0.5);
+  const charAnchor = CHARACTER_ANCHOR[character.id] ?? { x: 0.5, y: 0.5 };
+  portrait.anchor.set(charAnchor.x, charAnchor.y);
   fitByHeight(portrait, CHARACTER_POPUP_UI.slotW * CHARACTER_POPUP_UI.portraitScale);
   portrait.position.set(0, -CHARACTER_POPUP_UI.slotW * 0.06);
   container.addChild(portrait);
