@@ -53,6 +53,9 @@ const TOP_HOME_ICON_W = 80;
 const PAGE_BUTTON_W = 108;
 const PAGE_BACK_POS = { x: 86, y: 960 };
 const COMING_SOON_W = DESIGN_W;
+const PROFILE_ICON_POS = { x: 980, y: 115 };
+const PROFILE_ICON_RADIUS = 60;
+const PROFILE_FRAME_W = 136;
 const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
@@ -228,9 +231,34 @@ export const createLobbyScene = ({
   }
 
   const characterBadge = createPlayableCharacterBadge(PIXI, textures);
-  characterBadge.eventMode = 'static';
-  characterBadge.cursor = 'pointer';
+  characterBadge.eventMode = 'none';
+  characterBadge.cursor = 'default';
   page1Container.addChild(characterBadge);
+
+  const profileIconContainer = new PIXI.Container();
+  profileIconContainer.position.set(PROFILE_ICON_POS.x, PROFILE_ICON_POS.y);
+  frame.addChild(profileIconContainer);
+
+  const profileMask = new PIXI.Graphics();
+  profileMask.beginFill(0xffffff);
+  profileMask.drawCircle(0, 0, PROFILE_ICON_RADIUS);
+  profileMask.endFill();
+  profileIconContainer.addChild(profileMask);
+
+  const profilePortrait = new PIXI.Sprite(textures.charPopKnight);
+  profilePortrait.anchor.set(0.5, 0.5);
+  fitByHeight(profilePortrait, PROFILE_ICON_RADIUS * 2);
+  profilePortrait.mask = profileMask;
+  profileIconContainer.addChild(profilePortrait);
+
+  const profileFrame = new PIXI.Sprite(textures.profileFrame1);
+  profileFrame.anchor.set(0.5, 0.5);
+  fitByWidth(profileFrame, PROFILE_FRAME_W);
+  profileIconContainer.addChild(profileFrame);
+
+  profileIconContainer.eventMode = 'static';
+  profileIconContainer.hitArea = new PIXI.Circle(0, 0, PROFILE_ICON_RADIUS + 10);
+  profileIconContainer.cursor = 'pointer';
 
   let selectedCharacterId = normalizeCharacterId(getSelectedCharacter?.());
   let pendingCharacterId = selectedCharacterId;
@@ -326,6 +354,8 @@ export const createLobbyScene = ({
     const texture = textures[textureKey] ?? textures.lobbyCharacter;
     characterBadge.texture = texture;
     fitByHeight(characterBadge, SELECT_CHARACTER_H);
+    profilePortrait.texture = textures[textureKey] ?? textures.charPopKnight;
+    fitByHeight(profilePortrait, PROFILE_ICON_RADIUS * 2);
   };
 
   const openCharacterPopup = () => {
@@ -338,7 +368,7 @@ export const createLobbyScene = ({
     charPopupContainer.visible = false;
   };
 
-  characterBadge.on('pointertap', () => {
+  profileIconContainer.on('pointertap', () => {
     openCharacterPopup();
   });
 

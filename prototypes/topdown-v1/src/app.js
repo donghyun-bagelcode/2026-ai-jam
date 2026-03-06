@@ -31,6 +31,8 @@ const LOBBY_ASSET_PATHS = {
   pageButton: './image/lobby/page-button.png',
   lobbyComingSoon: './image/lobby/page-comming-soon.png',
   lobbyCharacter: './image/lobby/character.png',
+  profileFrame1: './image/lobby/select_character_1.png',
+  profileFrame2: './image/lobby/select_character_2.png',
 };
 
 const LOBBY_HARD_ASSET_PATHS = {
