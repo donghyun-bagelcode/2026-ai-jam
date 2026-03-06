@@ -1,11 +1,19 @@
 import { ASSET_PATHS } from './config.js';
 import { createGameScene } from './game.js';
 import { createLobbyScene } from './lobby.js';
-import { getTotalStars, getUnlockedStageId, loadProgress, saveStageResult } from './save-data.js';
+import * as saveData from './save-data.js';
 import { createSplashScene } from './splash.js';
 import { createWorldScene } from './world.js';
 import { getPixi, waitForPixi } from './pixi.js';
 import { SceneManager } from './scene-manager.js';
+
+const loadProgress = saveData.loadProgress ?? (() => ({ basic: {}, hard: {} }));
+const getUnlockedStageId = saveData.getUnlockedStageId ?? (() => 1);
+const getTotalStars = saveData.getTotalStars ?? (() => 0);
+const saveStageResult = saveData.saveStageResult ?? (() => ({}));
+const loadSelectedCharacter = saveData.loadSelectedCharacter ?? (() => 'knight');
+const saveSelectedCharacter =
+  saveData.saveSelectedCharacter ?? ((characterId) => (typeof characterId === 'string' ? characterId : 'knight'));
 
 const LOBBY_ASSET_PATHS = {
   lobbyBg: './image/lobby/bg.png',
@@ -123,7 +131,7 @@ const bootstrap = async () => {
   });
 
   const sceneManager = new SceneManager(app.stage);
-  let selectedCharacterId = 'knight';
+  let selectedCharacterId = loadSelectedCharacter();
 
   const splashScene = createSplashScene({
     app,
@@ -170,7 +178,7 @@ const bootstrap = async () => {
       };
     },
     onCharacterSelect: (id) => {
-      selectedCharacterId = id;
+      selectedCharacterId = saveSelectedCharacter(id);
     },
     getSelectedCharacter: () => selectedCharacterId,
     onGoWorld: () => sceneManager.switchScene('world'),

@@ -96,9 +96,12 @@ const CHARACTER_POPUP_UI = {
   slotGapX: 8,
   slotGapY: 85,
   gridTopY: -320,
-  starsW: 26,
-  starsGap: 28,
-  portraitScale: 0.85,
+  portraitScale: 0.95,
+  portraitScaleX: 1,
+  portraitScaleY: 1,
+  portraitOffsetX: 0,
+  portraitOffsetYRatio: -0.06,
+  portraitOffsetY: 110,
 };
 const CHARACTER_GRID_SLOT_TOTAL = 9;
 const CHARACTER_LIST = [
@@ -480,10 +483,17 @@ export const createLobbyScene = ({
   });
 
   const applyPage = () => {
+    const isPage1 = currentPage === 1;
     page1Container.visible = currentPage === 1;
     page2Container.visible = currentPage === 2;
     pageButton.visible = currentPage === 1;
     pageBackButton.visible = currentPage === 2;
+    profileIconContainer.visible = isPage1;
+    profileIconContainer.eventMode = isPage1 ? 'static' : 'none';
+    profileIconContainer.cursor = isPage1 ? 'pointer' : 'default';
+    if (!isPage1) {
+      closeCharacterPopup();
+    }
   };
 
   pageButton.on('pointertap', () => {
@@ -638,16 +648,15 @@ const createCharacterSlot = (PIXI, textures, character) => {
   const charAnchor = CHARACTER_ANCHOR[character.id] ?? { x: 0.5, y: 0.5 };
   portrait.anchor.set(charAnchor.x, charAnchor.y);
   fitByHeight(portrait, CHARACTER_POPUP_UI.slotW * CHARACTER_POPUP_UI.portraitScale);
-  portrait.position.set(0, -CHARACTER_POPUP_UI.slotW * 0.06);
+  portrait.scale.set(
+    portrait.scale.x * CHARACTER_POPUP_UI.portraitScaleX,
+    portrait.scale.y * CHARACTER_POPUP_UI.portraitScaleY
+  );
+  portrait.position.set(
+    CHARACTER_POPUP_UI.portraitOffsetX,
+    CHARACTER_POPUP_UI.slotW * CHARACTER_POPUP_UI.portraitOffsetYRatio + CHARACTER_POPUP_UI.portraitOffsetY
+  );
   container.addChild(portrait);
-
-  for (let i = 0; i < 3; i += 1) {
-    const star = new PIXI.Sprite(textures.charPopStar);
-    star.anchor.set(0.5, 0.5);
-    fitByWidth(star, CHARACTER_POPUP_UI.starsW);
-    star.position.set((i - 1) * CHARACTER_POPUP_UI.starsGap, CHARACTER_POPUP_UI.slotW * 0.33);
-    container.addChild(star);
-  }
 
   return { container, frame, characterId: character.id };
 };

@@ -58,8 +58,8 @@ export const OBJECT_SCALE = {
 
 export const CHARACTER_ANCHOR = {
   knight: { x: 0.5, y: 1 },
-  thief: { x: 0.5, y: 1 },
-  archer: { x: 0.5, y: 1 },
+  thief: { x: 0.45, y: 1 },
+  archer: { x: 0.45, y: 1 },
   magician: { x: 0.5, y: 1 },
 };
 
