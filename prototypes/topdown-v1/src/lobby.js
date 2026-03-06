@@ -54,8 +54,9 @@ const PAGE_BUTTON_W = 108;
 const PAGE_BACK_POS = { x: 86, y: 960 };
 const COMING_SOON_W = DESIGN_W;
 const PROFILE_ICON_POS = { x: 980, y: 115 };
-const PROFILE_ICON_RADIUS = 60;
-const PROFILE_FRAME_W = 136;
+const PROFILE_ICON_RADIUS = 120;
+const PROFILE_BADGE_W = 56;
+const PROFILE_BADGE_OFFSET = { x: -80, y: 60 };
 const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
@@ -246,15 +247,16 @@ export const createLobbyScene = ({
   profileIconContainer.addChild(profileMask);
 
   const profilePortrait = new PIXI.Sprite(textures.charPopKnight);
-  profilePortrait.anchor.set(0.5, 0.5);
-  fitByHeight(profilePortrait, PROFILE_ICON_RADIUS * 2);
+  profilePortrait.anchor.set(0.5, 0.25);
+  fitByWidth(profilePortrait, PROFILE_ICON_RADIUS * 2);
   profilePortrait.mask = profileMask;
   profileIconContainer.addChild(profilePortrait);
 
-  const profileFrame = new PIXI.Sprite(textures.profileFrame1);
-  profileFrame.anchor.set(0.5, 0.5);
-  fitByWidth(profileFrame, PROFILE_FRAME_W);
-  profileIconContainer.addChild(profileFrame);
+  const profileBadge = new PIXI.Sprite(textures.profileFrame2);
+  profileBadge.anchor.set(0.5, 0.5);
+  fitByWidth(profileBadge, PROFILE_BADGE_W);
+  profileBadge.position.set(PROFILE_BADGE_OFFSET.x, PROFILE_BADGE_OFFSET.y);
+  profileIconContainer.addChild(profileBadge);
 
   profileIconContainer.eventMode = 'static';
   profileIconContainer.hitArea = new PIXI.Circle(0, 0, PROFILE_ICON_RADIUS + 10);
@@ -355,7 +357,8 @@ export const createLobbyScene = ({
     characterBadge.texture = texture;
     fitByHeight(characterBadge, SELECT_CHARACTER_H);
     profilePortrait.texture = textures[textureKey] ?? textures.charPopKnight;
-    fitByHeight(profilePortrait, PROFILE_ICON_RADIUS * 2);
+    profilePortrait.anchor.set(0.5, 0.25);
+    fitByWidth(profilePortrait, PROFILE_ICON_RADIUS * 2);
   };
 
   const openCharacterPopup = () => {

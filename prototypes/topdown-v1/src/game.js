@@ -1,5 +1,5 @@
 import { Board } from './board.js';
-import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE } from './config.js';
+import { getStage, STAGE_COUNT, SWIPE_MIN_DISTANCE, TILE_SIZE } from './config.js';
 import { DebugUI } from './debug-ui.js';
 import { SwipeInput } from './input.js';
 import { Player } from './player.js';
@@ -9,6 +9,11 @@ const DESIGN_W = 1080;
 const DESIGN_H = 1920;
 const BACK_ICON_W = 66;
 const BACK_ICON_POS = { x: 65, y: 115 };
+const HUD_CORNER_PADDING_X = 0;
+const HUD_CORNER_PADDING_Y = 0;
+const STAGE_LABEL_FONT_SIZE = 52;
+const RESET_ICON_W = 56;
+const HUD_STAGE_BOUNDS = { leftCol: 1, rightCol: 5, topRow: 1, bottomRow: 7 };
 
 let debugUi = null;
 
@@ -98,6 +103,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
   let popupNextBtn = null;
   let popupExitBtn = null;
   let backIcon = null;
+  let resetIcon = null;
+  let stageLabelText = null;
   let resetButtonEl = null;
   let pendingSlideOutcome = null;
 
@@ -288,6 +295,9 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     state.stageId = nextStageId;
     state.keyGoal = stageData.keys.length;
     pendingSlideOutcome = null;
+    if (stageLabelText) {
+      stageLabelText.text = `STAGE ${state.stageId}`;
+    }
   };
 
   function createHud() {
@@ -361,6 +371,36 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
     hudOverlay.addChild(keyHudContainer);
     hudOverlay.addChild(moveHudContainer);
+
+    const keyBounds = keyHudContainer.getLocalBounds();
+    keyHudContainer.pivot.set(keyBounds.x, keyBounds.y + keyBounds.height * 0.5);
+
+    const moveBounds = moveHudContainer.getLocalBounds();
+    moveHudContainer.pivot.set(moveBounds.x + moveBounds.width, moveBounds.y + moveBounds.height * 0.5);
+
+    resetIcon = new PIXI.Sprite(textures.popupReplay);
+    resetIcon.anchor.set(0.5, 0.5);
+    fitSpriteByWidth(resetIcon, RESET_ICON_W);
+    resetIcon.eventMode = 'static';
+    resetIcon.cursor = 'pointer';
+    resetIcon.on('pointertap', () => {
+      if (!state.active || state.clear) {
+        return;
+      }
+      resetGameplay();
+    });
+    hudOverlay.addChild(resetIcon);
+
+    stageLabelText = new PIXI.Text(`STAGE ${state.stageId}`, {
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+      fontWeight: '800',
+      fontSize: STAGE_LABEL_FONT_SIZE,
+      fill: 0xffffff,
+      stroke: 0x111827,
+      strokeThickness: 6,
+    });
+    stageLabelText.anchor.set(1, 0.5);
+    hudOverlay.addChild(stageLabelText);
   }
 
   function createPopup() {
@@ -470,16 +510,36 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     const boardTop = currentBoard.container.y;
     const boardWidth = currentBoard.boardPixelWidth * currentBoard.container.scale.x;
     const boardHeight = currentBoard.boardPixelHeight * currentBoard.container.scale.x;
-    const boardCenterX = currentBoard.container.x + boardWidth * 0.5;
+    const boardLeft = currentBoard.container.x;
+    const boardRight = boardLeft + boardWidth;
     const boardBottom = boardTop + boardHeight;
 
-    const keyY = Math.max(40, boardTop - 48);
-    keyHudContainer.position.set(boardCenterX, keyY);
+    keyHudContainer.position.set(
+      boardLeft + HUD_CORNER_PADDING_X,
+      Math.max(40, boardTop - HUD_CORNER_PADDING_Y)
+    );
 
-    const moveY = Math.min(1880, boardBottom + 52);
-    moveHudContainer.position.set(boardCenterX, moveY);
+    moveHudContainer.position.set(
+      boardRight - HUD_CORNER_PADDING_X,
+      Math.max(40, boardTop - HUD_CORNER_PADDING_Y)
+    );
+
+    if (resetIcon) {
+      resetIcon.position.set(
+        boardLeft + HUD_CORNER_PADDING_X,
+        Math.min(1880, boardBottom + HUD_CORNER_PADDING_Y)
+      );
+    }
+
+    if (stageLabelText) {
+      stageLabelText.position.set(
+        boardRight - HUD_CORNER_PADDING_X,
+        Math.min(1880, boardBottom + HUD_CORNER_PADDING_Y)
+      );
+    }
 
     if (popupContainer) {
+      const boardCenterX = boardLeft + boardWidth * 0.5;
       popupContainer.position.set(boardCenterX, POPUP_UI.bgY);
     }
   }
