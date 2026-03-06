@@ -20,10 +20,10 @@ const STAGE_POS = {
 };
 
 const UI_POS = {
-  worldTitle: { x: 540, y: 173 },
+  worldTitle: { x: 540, y: 153 },
   starBar: { x: 540, y: 280 },
   back: { x: 65, y: 115 },
-  home: { x: 151, y: 115 },
+  home: { x: 151, y: 105 },
   page: { x: 994, y: 960 },
 };
 
@@ -31,21 +31,22 @@ const STAR_COUNTER_UI = {
   offsetX: 40,
   offsetY: 0,
   digitH: 70,
-  itemGap: 8,
+  itemGap: 2,
 };
 
 const STAGE_BUTTON_W = 170;
+const STAGE_BUTTON_W_CURRENT = 200;
 const STAGE_BUTTON_W_SMALL = 150;
 const STAGE_NUMBER_W = 52;
 const STAGE_NUMBER_H = 52;
 const STAGE_NUMBER_10_H = 68;
 const STAGE_NUMBER_10_GAP = 0.52;
 const STAGE_NUMBER_Y_OFFSET = -18;
-const STAGE_STAR_W = 62;
-const STAGE_STAR_GAP = 50;
+const STAGE_STAR_W = 67;
+const STAGE_STAR_GAP = 55;
 const STAGE_STAR_Y_OFFSET = -100;
 const TOP_BACK_ICON_W = 66;
-const TOP_HOME_ICON_W = 80;
+const TOP_HOME_ICON_W = 110;
 const PAGE_BUTTON_W = 158;
 const PAGE_BACK_POS = { x: 86, y: 960 };
 const COMING_SOON_W = DESIGN_W;
@@ -67,25 +68,25 @@ const CHARACTER_POPUP_UI = {
   centerY: 960,
   popupScaleX: 1,
   popupScaleY: 1,
-  titleW: 420,
+  titleW: 650,
   titleX: 0,
-  titleY: -472,
+  titleY: -532,
   titleScaleX: 1,
   titleScaleY: 1,
-  closeW: 52,
-  closeX: 378,
-  closeY: -524,
+  closeW: 160,
+  closeX: 398,
+  closeY: -604,
   closeScaleX: 1,
   closeScaleY: 1,
-  okW: 220,
+  okW: 310,
   okX: 0,
-  okY: 485,
+  okY: 620,
   okScaleX: 1,
   okScaleY: 1,
-  slotW: 220,
-  slotGapX: 16,
-  slotGapY: 40,
-  gridTopY: -300,
+  slotW: 255,
+  slotGapX: 8,
+  slotGapY: 85,
+  gridTopY: -320,
   starsW: 26,
   starsGap: 28,
   portraitScale: 0.85,
@@ -562,7 +563,9 @@ const applyStageNodeState = (node, textures, status, playable, stars) => {
   node.status = status;
   node.playable = playable;
   node.button.texture = pickStageTexture(textures, status);
-  fitByWidth(node.button, status === 'clear' ? STAGE_BUTTON_W : STAGE_BUTTON_W_SMALL);
+  const buttonW =
+    status === 'clear' ? STAGE_BUTTON_W : status === 'current' ? STAGE_BUTTON_W_CURRENT : STAGE_BUTTON_W_SMALL;
+  fitByWidth(node.button, buttonW);
   node.button.alpha = playable ? 1 : 0.94;
   node.button.cursor = playable ? 'pointer' : 'default';
 
