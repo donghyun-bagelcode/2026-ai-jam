@@ -56,6 +56,7 @@ const SPLASH_ASSET_PATHS = {
   splashGage: './image/splash/loading bar gauge.png',
   splashLoadingText: './image/splash/loading.png',
   splashDot: './image/splash/loading_dot.png',
+  splashTouchToStart: './image/splash/touch_to_start.png',
 };
 
 const POPUP_ASSET_PATHS = {

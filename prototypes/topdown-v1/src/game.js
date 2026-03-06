@@ -120,8 +120,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       const slideResult = wasAnimating
         ? { moved: false, path: [] }
         : player.trySlide(direction, {
-            stopAtCell: (x, y) =>
-              state.portalActive && x === currentStage.portal.x && y === currentStage.portal.y,
+            stopAtCell: (x, y) => x === currentStage.portal.x && y === currentStage.portal.y,
+            keyCells: board.getKeyCellSet(),
+            keyGoal: state.keyGoal,
+            collectedCount: state.keyCollected,
           });
 
       if (slideResult.moved) {
