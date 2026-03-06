@@ -5,7 +5,7 @@ const DESIGN_W = 1080;
 const DESIGN_H = 1920;
 
 const TITLE_Y = 126;
-const TITLE_W = 500;
+const TITLE_W = 700;
 const BANNER_W = 840;
 const BANNER_FIRST_BOTTOM_Y = 520;
 const BANNER_STACK_GAP = 28;

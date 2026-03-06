@@ -21,7 +21,7 @@ const STAGE_POS = {
 
 const UI_POS = {
   worldTitle: { x: 540, y: 173 },
-  starBar: { x: 540, y: 307 },
+  starBar: { x: 540, y: 280 },
   back: { x: 65, y: 115 },
   home: { x: 151, y: 115 },
   page: { x: 994, y: 960 },
@@ -30,35 +30,34 @@ const UI_POS = {
 const STAR_COUNTER_UI = {
   offsetX: 40,
   offsetY: 0,
-  digitH: 48,
+  digitH: 70,
   itemGap: 8,
-  slashFontSize: 40,
-  slashColor: 0xffffff,
-  slashStroke: 0x1f2937,
-  slashStrokeThickness: 6,
 };
 
-const STAGE_BUTTON_W = 184;
-const STAGE_BUTTON_W_SMALL = 168;
-const STAGE_NUMBER_W = 62;
-const STAGE_NUMBER_H = 62;
-const STAGE_NUMBER_10_H = 72;
+const STAGE_BUTTON_W = 170;
+const STAGE_BUTTON_W_SMALL = 150;
+const STAGE_NUMBER_W = 52;
+const STAGE_NUMBER_H = 52;
+const STAGE_NUMBER_10_H = 68;
 const STAGE_NUMBER_10_GAP = 0.52;
 const STAGE_NUMBER_Y_OFFSET = -18;
-const STAGE_STAR_W = 52;
-const STAGE_STAR_GAP = 40;
-const STAGE_STAR_Y_OFFSET = -80;
+const STAGE_STAR_W = 62;
+const STAGE_STAR_GAP = 50;
+const STAGE_STAR_Y_OFFSET = -100;
 const TOP_BACK_ICON_W = 66;
 const TOP_HOME_ICON_W = 80;
-const PAGE_BUTTON_W = 108;
+const PAGE_BUTTON_W = 158;
 const PAGE_BACK_POS = { x: 86, y: 960 };
 const COMING_SOON_W = DESIGN_W;
 const PROFILE_ICON_POS = { x: 980, y: 115 };
 const PROFILE_ICON_RADIUS = 120;
-const PROFILE_FRAME_W = PROFILE_ICON_RADIUS * 2 + 16;
+const PROFILE_FRAME_W = PROFILE_ICON_RADIUS * 2 + 10;
+const PROFILE_FRAME_OFFSET = { x: -30, y: 340 };
 const PROFILE_PORTRAIT_W = PROFILE_ICON_RADIUS * 2 - 16;
-const PROFILE_BADGE_W = 56;
-const PROFILE_BADGE_OFFSET = { x: -80, y: 60 };
+const PROFILE_PORTRAIT_ANCHOR = { x: 0.5, y: 0.25 };
+const PROFILE_PORTRAIT_OFFSET = { x: -45, y: 320 };
+const PROFILE_BADGE_W = 130;
+const PROFILE_BADGE_OFFSET = { x: 10, y: 390 };
 const SELECT_CHARACTER_H = 220;
 const SELECT_CHARACTER_X_OFFSET = -10;
 const SELECT_CHARACTER_STAND_OFFSET_Y = 0;
@@ -245,17 +244,20 @@ export const createLobbyScene = ({
   const profileFrame = new PIXI.Sprite(textures.profileFrame1);
   profileFrame.anchor.set(0.5, 0.5);
   fitByWidth(profileFrame, PROFILE_FRAME_W);
+  profileFrame.position.set(PROFILE_FRAME_OFFSET.x, PROFILE_FRAME_OFFSET.y);
   profileIconContainer.addChild(profileFrame);
 
   const profileMask = new PIXI.Graphics();
   profileMask.beginFill(0xffffff);
   profileMask.drawCircle(0, 0, PROFILE_ICON_RADIUS);
   profileMask.endFill();
+  profileMask.position.set(PROFILE_PORTRAIT_OFFSET.x, PROFILE_PORTRAIT_OFFSET.y);
   profileIconContainer.addChild(profileMask);
 
   const profilePortrait = new PIXI.Sprite(textures.charPopKnight);
-  profilePortrait.anchor.set(0.5, 0.25);
+  profilePortrait.anchor.set(PROFILE_PORTRAIT_ANCHOR.x, PROFILE_PORTRAIT_ANCHOR.y);
   fitByWidth(profilePortrait, PROFILE_PORTRAIT_W);
+  profilePortrait.position.set(PROFILE_PORTRAIT_OFFSET.x, PROFILE_PORTRAIT_OFFSET.y);
   profilePortrait.mask = profileMask;
   profileIconContainer.addChild(profilePortrait);
 
@@ -266,7 +268,11 @@ export const createLobbyScene = ({
   profileIconContainer.addChild(profileBadge);
 
   profileIconContainer.eventMode = 'static';
-  profileIconContainer.hitArea = new PIXI.Circle(0, 0, PROFILE_ICON_RADIUS + 10);
+  profileIconContainer.hitArea = new PIXI.Circle(
+    PROFILE_PORTRAIT_OFFSET.x,
+    PROFILE_PORTRAIT_OFFSET.y,
+    PROFILE_ICON_RADIUS + 10
+  );
   profileIconContainer.cursor = 'pointer';
 
   let selectedCharacterId = normalizeCharacterId(getSelectedCharacter?.());
@@ -364,8 +370,10 @@ export const createLobbyScene = ({
     characterBadge.texture = texture;
     fitByHeight(characterBadge, SELECT_CHARACTER_H);
     profilePortrait.texture = textures[textureKey] ?? textures.charPopKnight;
-    profilePortrait.anchor.set(0.5, 0.25);
+    profilePortrait.anchor.set(PROFILE_PORTRAIT_ANCHOR.x, PROFILE_PORTRAIT_ANCHOR.y);
     fitByWidth(profilePortrait, PROFILE_PORTRAIT_W);
+    profilePortrait.position.set(PROFILE_PORTRAIT_OFFSET.x, PROFILE_PORTRAIT_OFFSET.y);
+    profileMask.position.set(PROFILE_PORTRAIT_OFFSET.x, PROFILE_PORTRAIT_OFFSET.y);
   };
 
   const openCharacterPopup = () => {
@@ -647,15 +655,9 @@ const renderStarCounter = (PIXI, container, textures, value, maxValue) => {
       continue;
     }
 
-    const slash = new PIXI.Text(ch, {
-      fontFamily: 'Avenir Next, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-      fontWeight: '800',
-      fontSize: STAR_COUNTER_UI.slashFontSize,
-      fill: STAR_COUNTER_UI.slashColor,
-      stroke: STAR_COUNTER_UI.slashStroke,
-      strokeThickness: STAR_COUNTER_UI.slashStrokeThickness,
-    });
+    const slash = new PIXI.Sprite(textures.slash);
     slash.anchor.set(0.5, 0.5);
+    fitByHeight(slash, STAR_COUNTER_UI.digitH);
     items.push(slash);
     totalWidth += slash.width;
   }

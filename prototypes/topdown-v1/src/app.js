@@ -24,6 +24,7 @@ const LOBBY_ASSET_PATHS = {
   num7: './image/lobby/num_7.png',
   num8: './image/lobby/num_8.png',
   num9: './image/lobby/num_9.png',
+  slash: './image/lobby/slash.png',
   starCollect: './image/lobby/star-collect.png',
   star: './image/lobby/star.png',
   back: './image/lobby/back.png',
