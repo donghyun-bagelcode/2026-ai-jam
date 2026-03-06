@@ -42,6 +42,8 @@ const STAGE_BUTTON_W = 184;
 const STAGE_BUTTON_W_SMALL = 168;
 const STAGE_NUMBER_W = 62;
 const STAGE_NUMBER_H = 62;
+const STAGE_NUMBER_10_H = 72;
+const STAGE_NUMBER_10_GAP = 0.52;
 const STAGE_NUMBER_Y_OFFSET = -18;
 const STAGE_STAR_W = 52;
 const STAGE_STAR_GAP = 40;
@@ -69,10 +71,15 @@ const CHARACTER_POPUP_UI = {
 };
 const CHARACTER_GRID_SLOT_TOTAL = 9;
 const CHARACTER_LIST = [
-  { id: 'knight', textureKey: 'charPopKnight' },
-  { id: 'thief', textureKey: 'charPopThief' },
-  { id: 'archer', textureKey: 'charPopArcher' },
-  { id: 'magician', textureKey: 'charPopMagician' },
+  { id: 'knight', textureKey: 'charPopKnight', locked: false },
+  { id: 'thief', textureKey: 'charPopThief', locked: false },
+  { id: 'archer', textureKey: 'charPopArcher', locked: false },
+  { id: 'magician', textureKey: 'charPopMagician', locked: false },
+  { id: 'locked1', textureKey: 'charPopLocked1', locked: true },
+  { id: 'locked2', textureKey: 'charPopLocked2', locked: true },
+  { id: 'locked3', textureKey: 'charPopLocked3', locked: true },
+  { id: 'locked4', textureKey: 'charPopLocked4', locked: true },
+  { id: 'locked5', textureKey: 'charPopLocked5', locked: true },
 ];
 const CHARACTER_TEXTURE_BY_ID = {
   knight: 'charPopKnight',
@@ -395,14 +402,14 @@ const createStageNode = (PIXI, textures, stageId, onSelectStage) => {
   } else if (stageId === 10 && textures.num1 && textures.num0) {
     const one = new PIXI.Sprite(textures.num1);
     one.anchor.set(0.5, 0.5);
-    fitByHeight(one, STAGE_NUMBER_H);
+    fitByHeight(one, STAGE_NUMBER_10_H);
 
     const zero = new PIXI.Sprite(textures.num0);
     zero.anchor.set(0.5, 0.5);
-    fitByHeight(zero, STAGE_NUMBER_H);
+    fitByHeight(zero, STAGE_NUMBER_10_H);
 
     const pair = new PIXI.Container();
-    const gap = Math.round(STAGE_NUMBER_H * 0.52);
+    const gap = Math.round(STAGE_NUMBER_10_H * STAGE_NUMBER_10_GAP);
     one.position.set(-gap * 0.5, 0);
     zero.position.set(gap * 0.5, 0);
     pair.addChild(one);
@@ -475,15 +482,23 @@ const pickStageTexture = (textures, status) => {
 
 const createCharacterSlot = (PIXI, textures, character) => {
   const container = new PIXI.Container();
+
+  if (!character) {
+    return { container, frame: null, characterId: null };
+  }
+
+  if (character.locked) {
+    const lockedSprite = new PIXI.Sprite(textures[character.textureKey]);
+    lockedSprite.anchor.set(0.5, 0.5);
+    fitByWidth(lockedSprite, CHARACTER_POPUP_UI.slotW);
+    container.addChild(lockedSprite);
+    return { container, frame: lockedSprite, characterId: null };
+  }
+
   const frame = new PIXI.Sprite(textures.charPopSlotYellow);
   frame.anchor.set(0.5, 0.5);
   fitByWidth(frame, CHARACTER_POPUP_UI.slotW);
   container.addChild(frame);
-
-  if (!character) {
-    frame.alpha = 0.4;
-    return { container, frame, characterId: null };
-  }
 
   const portrait = new PIXI.Sprite(textures[character.textureKey]);
   portrait.anchor.set(0.5, 0.5);

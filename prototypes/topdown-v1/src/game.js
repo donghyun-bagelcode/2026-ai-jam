@@ -7,6 +7,8 @@ import { getPixi } from './pixi.js';
 
 const DESIGN_W = 1080;
 const DESIGN_H = 1920;
+const BACK_ICON_W = 66;
+const BACK_ICON_POS = { x: 65, y: 115 };
 
 let debugUi = null;
 
@@ -95,8 +97,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
   let popupReplayBtn = null;
   let popupNextBtn = null;
   let popupExitBtn = null;
+  let backIcon = null;
   let resetButtonEl = null;
-  let backButtonEl = null;
   let pendingSlideOutcome = null;
 
   if (!debugUi) {
@@ -146,10 +148,6 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     }
     resetGameplay();
     debugUi?.logInput('reset');
-  });
-
-  backButtonEl.addEventListener('click', () => {
-    onGoLobby?.();
   });
 
   const tickerUpdate = () => {
@@ -295,33 +293,32 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
   function createHud() {
     createPixiHud();
     createPopup();
+    createBackIcon();
 
     resetButtonEl = document.createElement('button');
     resetButtonEl.textContent = 'Reset';
     applyTopButtonStyle(resetButtonEl);
 
-    backButtonEl = document.createElement('button');
-    backButtonEl.textContent = 'Back';
-    applyTopButtonStyle(backButtonEl);
-    backButtonEl.style.height = '28px';
-    backButtonEl.style.padding = '0 10px';
-    backButtonEl.style.font = "600 12px/1.1 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
-    backButtonEl.style.borderRadius = '8px';
-    backButtonEl.style.top = '12px';
-    backButtonEl.style.left = '12px';
-    backButtonEl.style.position = 'fixed';
-    backButtonEl.style.zIndex = '9100';
-
     root.appendChild(resetButtonEl);
-    root.appendChild(backButtonEl);
 
     resetButtonEl.style.display = 'none';
-    backButtonEl.style.display = '';
 
     const debugButton = debugUi?.button ?? null;
     if (debugButton) {
       debugButton.style.display = 'none';
     }
+  }
+
+  function createBackIcon() {
+    backIcon = new PIXI.Sprite(textures.commonBack);
+    backIcon.anchor.set(0.5, 0.5);
+    fitSpriteByWidth(backIcon, BACK_ICON_W);
+    backIcon.position.set(BACK_ICON_POS.x, BACK_ICON_POS.y);
+    backIcon.eventMode = 'static';
+    backIcon.hitArea = new PIXI.Rectangle(-56, -56, 112, 112);
+    backIcon.cursor = 'pointer';
+    backIcon.on('pointertap', () => onGoLobby?.());
+    hudOverlay.addChild(backIcon);
   }
 
   function createPixiHud() {
@@ -551,8 +548,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   function setUiVisible(visible) {
     if (hudOverlay) hudOverlay.visible = visible;
+    if (backIcon) backIcon.visible = visible;
     if (resetButtonEl) resetButtonEl.style.display = 'none';
-    if (backButtonEl) backButtonEl.style.display = visible ? '' : 'none';
     if (!visible) {
       hideClear();
     }

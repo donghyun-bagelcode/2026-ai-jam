@@ -92,6 +92,11 @@ const CHARACTER_POPUP_ASSET_PATHS = {
   charPopArcher: './image/lobby-popup/archer.png',
   charPopMagician: './image/lobby-popup/magician.png',
   charPopThief: './image/lobby-popup/thief.png',
+  charPopLocked1: './image/lobby-popup/character select_1.png',
+  charPopLocked2: './image/lobby-popup/character select_2.png',
+  charPopLocked3: './image/lobby-popup/character select_3.png',
+  charPopLocked4: './image/lobby-popup/character select_4.png',
+  charPopLocked5: './image/lobby-popup/character select_5.png',
 };
 
 const bootstrap = async () => {
