@@ -1,5 +1,6 @@
 import { getPixi } from './pixi.js';
 import * as gameConfig from './config.js';
+import { Easing, TweenManager } from './tween.js';
 
 const STAGE_COUNT = gameConfig.STAGE_COUNT ?? gameConfig.STAGES?.length ?? 10;
 const CHARACTER_ANCHOR =
@@ -138,6 +139,7 @@ export const createLobbyScene = ({
 
   const container = new PIXI.Container();
   container.visible = false;
+  const tweens = new TweenManager(app.ticker);
   let currentMode = 'basic';
   let currentPage = 1;
 
@@ -218,7 +220,7 @@ export const createLobbyScene = ({
   frame.addChild(pageBackButton);
 
   const stageNodes = STAGE_META.map((meta) =>
-    createStageNode(PIXI, textures, meta.id, (stageId) => onSelectStage?.(stageId, currentMode))
+    createStageNode(PIXI, textures, meta.id, (stageId) => onSelectStage?.(stageId, currentMode), tweens)
   );
 
   for (const node of stageNodes) {
@@ -392,13 +394,28 @@ export const createLobbyScene = ({
   };
 
   const openCharacterPopup = () => {
+    if (charPopupContainer.visible) {
+      return;
+    }
     pendingCharacterId = selectedCharacterId;
     refreshCharacterPopupSelection();
     charPopupContainer.visible = true;
+    charPopupRoot.scale.set(0.01);
+    tweens.cancelAll(charPopupRoot.scale);
+    tweens.to(charPopupRoot.scale, { x: 1, y: 1 }, 180, { easing: Easing.backOut });
   };
 
   const closeCharacterPopup = () => {
-    charPopupContainer.visible = false;
+    if (!charPopupContainer.visible) {
+      return;
+    }
+    tweens.cancelAll(charPopupRoot.scale);
+    tweens.to(charPopupRoot.scale, { x: 0.01, y: 0.01 }, 150, {
+      easing: Easing.easeIn,
+      onComplete: () => {
+        charPopupContainer.visible = false;
+      },
+    });
   };
 
   profileIconContainer.on('pointertap', () => {
@@ -525,7 +542,7 @@ export const createLobbyScene = ({
   };
 };
 
-const createStageNode = (PIXI, textures, stageId, onSelectStage) => {
+const createStageNode = (PIXI, textures, stageId, onSelectStage, tweens) => {
   const buttonTexture = pickStageTexture(textures, 'locked');
   const button = new PIXI.Sprite(buttonTexture);
   button.anchor.set(0.5, 0.5);
@@ -574,6 +591,11 @@ const createStageNode = (PIXI, textures, stageId, onSelectStage) => {
   const node = { id: stageId, status: 'locked', playable: false, button, numberSprite, numberText, starContainer };
   button.on('pointertap', () => {
     if (node.playable) {
+      const baseScaleX = node.button.scale.x;
+      const baseScaleY = node.button.scale.y;
+      button.scale.set(baseScaleX * 0.92, baseScaleY * 0.92);
+      tweens.cancelAll(button.scale);
+      tweens.to(button.scale, { x: baseScaleX, y: baseScaleY }, 100, { easing: Easing.backOut });
       onSelectStage?.(node.id);
     }
   });

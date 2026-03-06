@@ -4,6 +4,7 @@ import { DebugUI } from './debug-ui.js';
 import { SwipeInput } from './input.js';
 import { Player } from './player.js';
 import { getPixi } from './pixi.js';
+import { Easing, TweenManager } from './tween.js';
 
 const DESIGN_W = 1080;
 const DESIGN_H = 1920;
@@ -103,6 +104,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   const container = new PIXI.Container();
   container.visible = false;
+  const tweens = new TweenManager(app.ticker);
 
   const frame = new PIXI.Container();
   container.addChild(frame);
@@ -291,10 +293,20 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
 
   const destroy = () => {
     setUiVisible(false);
+    tweens.destroy();
     app.ticker.remove(tickerUpdate);
     input.targetElement?.removeEventListener?.('pointerdown', input.handlePointerDown);
     input.targetElement?.removeEventListener?.('pointerup', input.handlePointerUp);
     input.targetElement?.removeEventListener?.('pointercancel', input.handlePointerCancel);
+  };
+
+  const playTapAlphaFeedback = (button) => {
+    if (!button) {
+      return;
+    }
+    tweens.cancelAll(button);
+    button.alpha = 0.7;
+    tweens.to(button, { alpha: 1 }, 100);
   };
 
   const applySlideOutcome = (path) => {
@@ -392,7 +404,10 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     backIcon.eventMode = 'static';
     backIcon.hitArea = new PIXI.Rectangle(-56, -56, 112, 112);
     backIcon.cursor = 'pointer';
-    backIcon.on('pointertap', () => onGoLobby?.());
+    backIcon.on('pointertap', () => {
+      playTapAlphaFeedback(backIcon);
+      onGoLobby?.();
+    });
     hudOverlay.addChild(backIcon);
   }
 
@@ -457,6 +472,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     resetIcon.eventMode = 'static';
     resetIcon.cursor = 'pointer';
     resetIcon.on('pointertap', () => {
+      playTapAlphaFeedback(resetIcon);
       if (!state.active || state.clear) {
         return;
       }
@@ -521,6 +537,8 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       const star = new PIXI.Sprite(textures.popupStarEmpty);
       star.anchor.set(0.5, 0.5);
       fitSpriteByWidth(star, POPUP_UI.starW);
+      star.fxBaseScaleX = star.scale.x;
+      star.fxBaseScaleY = star.scale.y;
       star.position.set(offset * POPUP_UI.starsGap, starY);
       popupContainer.addChild(star);
       return star;
@@ -536,6 +554,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupReplayBtn.eventMode = 'static';
     popupReplayBtn.cursor = 'pointer';
     popupReplayBtn.on('pointertap', () => {
+      playTapAlphaFeedback(popupReplayBtn);
       hideClear();
       resetGameplay();
     });
@@ -551,6 +570,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupNextBtn.eventMode = 'static';
     popupNextBtn.cursor = 'pointer';
     popupNextBtn.on('pointertap', () => {
+      playTapAlphaFeedback(popupNextBtn);
       const nextStageId = state.stageId + 1;
       hideClear();
       if (nextStageId > STAGE_COUNT) {
@@ -573,6 +593,7 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
     popupExitBtn.eventMode = 'static';
     popupExitBtn.cursor = 'pointer';
     popupExitBtn.on('pointertap', () => {
+      playTapAlphaFeedback(popupExitBtn);
       hideClear();
       onGoLobby?.();
     });
@@ -719,14 +740,39 @@ export const createGameScene = ({ app, root, textures, onGoLobby, onStageClear, 
       return;
     }
     renderPopupStageNumber(state.stageId);
-    for (let i = 0; i < popupStarSprites.length; i += 1) {
-      popupStarSprites[i].texture = i < stars ? textures.popupStar : textures.popupStarEmpty;
+    for (const star of popupStarSprites) {
+      tweens.cancelAll(star.scale);
+      star.texture = textures.popupStarEmpty;
+      star.scale.set(star.fxBaseScaleX ?? 1, star.fxBaseScaleY ?? 1);
     }
     popupContainer.visible = true;
+    tweens.cancelAll(popupContainer.scale);
+    popupContainer.scale.set(0.01, 0.01);
+    tweens.to(popupContainer.scale, { x: POPUP_UI.scale, y: POPUP_UI.scale }, 180, { easing: Easing.backOut });
+
+    const starCount = Math.max(0, Math.min(stars, popupStarSprites.length));
+    for (let i = 0; i < starCount; i += 1) {
+      const star = popupStarSprites[i];
+      const delay = 300 + i * 180;
+      tweens.to(star.scale, { x: 0.01, y: 0.01 }, 1, {
+        delay: delay - 1,
+        onComplete: () => {
+          star.texture = textures.popupStar;
+          const baseX = star.fxBaseScaleX ?? 1;
+          const baseY = star.fxBaseScaleY ?? 1;
+          star.scale.set(baseX * 1.4, baseY * 1.4);
+          tweens.to(star.scale, { x: baseX, y: baseY }, 200, { easing: Easing.backOut });
+        },
+      });
+    }
   }
 
   function hideClear() {
     if (popupContainer) {
+      tweens.cancelAll(popupContainer.scale);
+      for (const star of popupStarSprites) {
+        tweens.cancelAll(star.scale);
+      }
       popupContainer.visible = false;
     }
   }
